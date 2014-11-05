@@ -1,0 +1,65 @@
+/** 
+* Skeleton for the first part of the project. 
+*
+* No names in this skeleton can be changed, you can add things to the vocabulary and you should definitely add stuff to the theory. 
+*/
+
+vocabulary warehousevoc{
+	type pallet
+	
+	on(pallet,pallet) //on(p1,p2) means p1 is standing on p2
+	carried(pallet) //carried(p1) means p1 is carried by the robot
+
+	type xco isa nat
+	type yco isa nat	
+	type location constructed from {grid(xco,yco)}
+	
+	inaccessible(location) //Locations that cannot be accessed by the robot and cannot be occupied by pallets
+	robotposition: location //position of the robot
+	position(pallet): location //position of the pallets
+	
+	type dir constructed from {north, east, south, west}
+	facing: dir //direction in which the robot is facing
+	
+	type height isa nat 
+	ceiling: height //the height of the ceiling
+    heightOf(pallet): height
+
+}
+
+theory solution: warehousevoc{
+    
+        
+   //de palletten
+    ?=<1 p1 [pallet] : carried(p1).
+    ! p1 [pallet]: carried(p1) => ~? p2 [pallet] : on(p2, p1)|on(p1,p2).
+   
+    ! p1 [pallet]: ?=<1 p2 [pallet]: on(p1, p2).
+    ! p1 [pallet]: ?=<1 p2 [pallet]: on(p2, p1).
+    
+    !p1 , p2 [pallet]: ~(on(p1,p2)&on(p2,p1)).
+    ! p1 [pallet]: ~on(p1,p1).
+    
+    ! l1 [location]: inaccessible(l1) => ~? p1 [pallet]: position(p1) = l1.
+    
+    ! p1 [pallet] : 1 =< heightOf(p1) & heightOf(p1) =< ceiling.
+    
+    ! p1 [pallet]: carried(p1) => heightOf(p1) = 1 & position(p1) = robotposition.
+    
+    ! p1 [pallet]: (~? p2 [pallet]: on(p2, p1)&~carried(p1) )=> heightOf(p1)= 1.
+       
+    
+    // de robot
+    ?1 d [dir]: facing = d. 
+    ! l1 [location]: inaccessible(l1) => robotposition ~= l1.
+	 !l1 [location] : (robotposition = l1)=> ~(? p1 [pallet]: 	             position(p1) = l1 & ~carried(p1)).    
+    
+    
+    //hoogte
+    ! p1, p2 [pallet]: on(p2,p1) => heightOf(p1) = heightOf(p2)+1.
+    
+    
+	//
+    
+
+}
