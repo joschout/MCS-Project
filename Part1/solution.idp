@@ -1,0 +1,94 @@
+/** 
+* Skeleton for the first part of the project. 
+*
+* No names in this skeleton can be changed, you can add things to the vocabulary and you should definitely add stuff to the theory. 
+*/
+
+vocabulary warehousevoc{
+	type pallet
+	
+	on(pallet,pallet) //on(p1,p2) means p1 is standing on p2
+	carried(pallet) //carried(p1) means p1 is carried by the robot
+
+	type xco isa nat
+	type yco isa nat	
+	type location constructed from {grid(xco,yco)}
+	
+	inaccessible(location) //Locations that cannot be accessed by the robot and cannot be occupied by pallets
+	robotposition: location //position of the robot
+	position(pallet): location //position of the pallets
+	
+	type dir constructed from {north, east, south, west}
+	facing: dir //direction in which the robot is facing
+	
+	type height isa nat 
+	ceiling: height //the height of the ceiling
+    
+    //function which maps a pallet to its height
+    heightOf(pallet): height
+
+}
+
+theory solution: warehousevoc{
+    
+        
+    // the pallets
+    // there is at most one pallet carried by the robot
+    ?=<1 p1 [pallet] : carried(p1).
+    
+    // if a pallet is being carried, then there is no pallet above or below that pallet
+    ! p1 [pallet]: carried(p1) => ~? p2 [pallet] : on(p2, p1)|on(p1,p2).
+    
+    // there is can be at most one pallet on top of a pallet
+    ! p1 [pallet]: ?=<1 p2 [pallet]: on(p1, p2).
+    
+    // there can be at most one pallet below a pallet
+    ! p1 [pallet]: ?=<1 p2 [pallet]: on(p2, p1).
+    
+    // for all pallets, there cannot be a pallet which is at the same time below and above that pallet
+    ! p1 , p2 [pallet]: ~(on(p1,p2)&on(p2,p1)).
+    
+    // a pallet cannot be on top of itself
+    ! p1 [pallet]: ~on(p1,p1).
+    
+    // if a location is inaccessible, then there cannot be pallet positioned at that location
+    ! l1 [location]: inaccessible(l1) => ~? p1 [pallet]: position(p1) = l1.
+    
+    /* the height of a pallet is at least 1 (on the ground or being carried)
+     and the heigth of a pallet is at most the height of the ceiling */
+    ! p1 [pallet] : 1 =< heightOf(p1) & heightOf(p1) =< ceiling.
+    
+    // a pallet is being carried if and only if its position is the robot's postion
+    ! p1 [pallet]: carried(p1) <=> position(p1) = robotposition.
+       
+    
+    // de robot
+    // there robot always faces exactly one direction
+    ?1 d [dir]: facing = d.
+    
+    // if a location is inaccessible, then the robot cannot stand on that location
+    ! l1 [location]: inaccessible(l1) => robotposition ~= l1.
+    
+    // there cannot be a pallet on the robot's position if it isn't carried
+	! l1 [location] : (robotposition = l1)=> ~(? p1 [pallet]: 	             position(p1) = l1 & ~carried(p1)).    
+    
+    
+    //hoogte
+    // if two different pallets have the same position, then they cannot have the same height
+    ! p1 ,p2 [pallet]: heightOf(p1)~=heightOf(p2) <= position(p1) = position(p2) &p1 ~= p2.
+   
+    // height is inductively defined
+    {
+     //if a pallet is beinig carried, then it must have a height of 1
+     ! p1 [pallet]: heightOf(p1) = 1  <- carried(p1).
+     
+     /* for all pallets p1: if there isn't a pallet below p1 and if p1 isn't being carried, then the height of p1 is 1. This is a base case which defines the height for pallets lying on the ground.       
+        */
+     ! p1 [pallet]: heightOf(p1)= 1<- (~? p2 [pallet]: on(p2, p1)&~carried(p1)).  
+        
+     // if pallet 2 is on top of pallet 1, then pallet 2 has a height which is 1 higher
+     ! p1, p2 [pallet]: heightOf(p1) = heightOf(p2)+1 <- on(p2,p1). 
+  
+    }
+
+}

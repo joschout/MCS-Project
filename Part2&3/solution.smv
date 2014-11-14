@@ -1,0 +1,36 @@
+--This is a comment
+
+MODULE main
+	VAR
+	
+		--it is ALLOWED to add arguments to the constructors of pallet and robot!!!!
+		robot 	: robot(1,3);
+		
+		--Initially, the pallets are on different locations
+		pallet1		: pallet(1,1);
+		pallet2		: pallet(5,3);
+	
+
+	--PUT YOUR CTL/LTL SPECIFICAITONS HERE!		
+
+MODULE robot(initX, initY) --initX and initY are the initial x and y coordinates
+	VAR
+		x : 0..5;
+		y : 0..5;
+		orientation : {north, east, south, west};
+		action : {moveFront, moveBack, pick_pallet, drop_pallet, rotate_clock}; 
+		
+	
+
+
+
+
+MODULE pallet(initX,initY) --initX and initY are the initial x and y coordinates
+	VAR
+		x : 0..5;
+		y : 0..5;
+		
+		
+		
+		
+		

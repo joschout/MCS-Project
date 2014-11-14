@@ -1,4 +1,4 @@
-include "Project/Part1/solution(1).idp" //put your solution here
+include "Project/Part1/solution.idp" //put your solution here
 include <mx>
 
 procedure main(){

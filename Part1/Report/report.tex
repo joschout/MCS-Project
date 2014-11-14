@@ -7,16 +7,17 @@
 \usepackage{placeins}
 
 \begin{document}
-\author{Lennart de Graef\\Jonas Schouterden}
+\author{Lennart de Graef, r0297214\\Jonas Schouterden, r0260385}
 \title{MCS Project: Part 1 \\
 Warehouse Robots}
 \maketitle
 
 \section*{Design decisions}
-We have introduced one new function symbol \emph{heightOf}. This function maps each pallet onto a height. We have chosen the height of pallets on the floor to be one, as they are one pallet high.
+We have introduced one new function symbol: \emph{heightOf}. This function maps each pallet onto a height. We have chosen the height of pallets on the floor to be $1$, as they are one pallet high.
 \\
 \emph{heightOf} is defined inductively. We state that a pallet on the floor (which has no pallet below it and is not being carried,) has a height of 1.
 If a pallet is on top of another pallet, it's height is one higher.\\
+\\
 Our time spend on this part of this project is about four hours. Most of the time was spent on rewriting statements. Each of the staments in our final solution is explained by a comment. 
 
 
