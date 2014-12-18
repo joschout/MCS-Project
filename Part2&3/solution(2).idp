@@ -7,7 +7,7 @@
 include<LTC>
 
 LTCvocabulary warehousevoc{
-	type Time
+	type Time isa nat
 	Start: Time
 	partial Next(Time):Time
 
@@ -27,12 +27,38 @@ LTCvocabulary warehousevoc{
 	
 	type dir constructed from {north, east, south, west}
 	facing(Time): dir
+    partial clockwiseTurn(dir):dir
+    partial counterClockwiseTurn(dir):dir
+    
 	
 	type height isa nat
 	ceiling: height
     
     //function which maps a pallet to its height
     heightOf(Time, pallet): height
+    
+    C_Facing(Time, dir)
+    C_NFacing(Time, dir)
+    I_Facing(dir)
+    
+    C_Robotposition(Time, location)
+    C_NRobotposition(Time, location)
+    I_Robotposition(location)
+    
+    
+    C_Carried(Time, location)
+    C_NCarried(Time,location)
+    I_Carried(location)
+    
+    C_On(Time, pallet, pallet)
+    C_NOn(Time, pallet, pallet)
+    I_On(pallet, pallet)
+    
+    
+    
+    partial moveXWhenFacing(dir): dif
+    type dif isa int
+    partial moveYWhenFacing(dir): dif
     
 }
 
@@ -100,6 +126,43 @@ theory solution: warehousevoc{
     
     
     
+    //FACING
+    //Inertia
+    {
+        // for all directions d: if d is the initial direction, then the robot facesd at time o
+       ! d [dir]: facing(0)=d <-I_Facing(d).
+        // if there is a cause for the robot to change its direction to d at time t, the robot will be facing d at time Next(t)
+       ! d [dir] t [Time]: facing(Next(t))= d <- C_Facing(t,d).
+       ! d [dir] t [Time]: facing(Next(t))=d <- facing(t)=d &~C_NFacing(t,d).
+    }
+    //Causes
+    {
+      ! t [Time] d, d2 [dir]: C_NFacing(t,d) <- C_Facing(t,d2) & d~=d2.
+     
+      ! t [Time] d [dir]: C_Facing(t,clockwiseTurn(d)) <- execute(t,rotateRight).
+      ! t [Time] d [dir]: C_Facing(t,counterClockwiseTurn(d)) <- execute(t,rotateLeft).
+      ! d[dir]: I_Facing(d) <- facing(0) = d
+    }
+    
+    
+    //MOVING
+    //Ineratia
+    {
+       ! l [location]: robotposition(0)=l <- I_Robotposition(l).
+       ! t [Time] l [location]: robotposition(Next(t))=l <- C_Robotposition(t,l).
+       ! t [Time] l [location]: robotposition(Next(t))=l <- robotposition(t)=l & ~C_NRobotposition(t,l).        
+    }
+    //Causes
+    {
+        ! t [Time] l1, l2 [location]: C_NRobotposition(t,l1) <- C_Robotposition(t,l2) & l1 ~=l2.
+        
+        
+        
+        /******************************************************************************************************Not sure if this works*********************************************************************************************************************************/
+        ! t [Time] : C_Robotposition(t, grid(xco + moveXWhenFacing(d), yco + moveYWhenFacing(d))) <- execute(t,moveFront) &facing(t) = d & robotposition(t) = (xco,yco).
+        ! t [Time] : C_Robotposition(t, grid(xco - moveXWhenFacing(d), yco - moveYWhenFacing(d))) <- execute(t,moveBack) & facing(t) = d & robotposition(t) = (xco,yco).
+        ! l [location] : I_Robotposition(l) <- robotposition(0) = l.
+    }
     
 
 }
@@ -151,6 +214,10 @@ structure verStruc:warehousevoc{
 	pallet={p1;p2}
 	inaccessible={grid(3,2);grid(2,2)}
 	ceiling = 3
+    clockwiseTurn = {north->east;east->south;south->west;west->north}
+    counterClockwiseTurn = {north->west; west->south;south->east;east->north}
+    moveXWhenFacing = {north->0; east->1;south->0;west->1 }
+    
 }
 
 
