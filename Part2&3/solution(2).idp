@@ -46,26 +46,29 @@ LTCvocabulary warehousevoc{
     I_Robotposition(location)
     
     
-    C_Carried(Time, location)
-    C_NCarried(Time,location)
-    I_Carried(location)
+    C_Carried(Time, pallet)
+    C_NCarried(Time,pallet)
+    I_Carried(pallet)
     
     C_On(Time, pallet, pallet)
     C_NOn(Time, pallet, pallet)
     I_On(pallet, pallet)
     
+    C_Position(Time, pallet)
+    C_NPosition(Time, pallet)
+    I_Position(pallet)
     
     
     partial moveXWhenFacing(dir): dif
     type dif isa int
     partial moveYWhenFacing(dir): dif
-    
 }
 
 theory solution: warehousevoc{
-    
+
+/************************ The static predicates from the 1st part *************************/
             
-    // the pallets
+/*** the pallets ***/
     // at each moment, there is at most one pallet carried by the robot
     ! t [Time]: ?=<1 p1 [pallet] : carried(t,p1).
     
@@ -95,7 +98,7 @@ theory solution: warehousevoc{
     ! t [Time] p1 [pallet]: carried(t,p1) <=> position(t,p1) = robotposition(t).
        
     
-    // the robot
+/*** the robot ***/
     // at each moment, the robot always faces exactly one direction
      ! t [Time]: ?1 d [dir]: facing(t) = d.
     
@@ -106,7 +109,7 @@ theory solution: warehousevoc{
 	! t [Time] l1 [location] : (robotposition(t) = l1)=> ~(? p1 [pallet]: 	             position(t,p1) = l1 & ~carried(t,p1)).    
     
     
-    //hoogte
+/*** height ***/
     //at each moment, if two different pallets have the same position, then they cannot have the same height
     ! t [Time] p1 , p2 [pallet]: heightOf(t,p1)~=heightOf(t,p2) <= position(t,p1) = position(t,p2) &p1 ~= p2.
    
@@ -124,9 +127,12 @@ theory solution: warehousevoc{
   
     }
     
+/************************** The second part *************************/
+
     
     
-    //FACING
+    
+/*** FACING ***/
     //Inertia
     {
         // for all directions d: if d is the initial direction, then the robot facesd at time o
@@ -145,8 +151,8 @@ theory solution: warehousevoc{
     }
     
     
-    //MOVING
-    //Ineratia
+/*** MOVING ***/
+    //Inertia
     {
        ! l [location]: robotposition(0)=l <- I_Robotposition(l).
        ! t [Time] l [location]: robotposition(Next(t))=l <- C_Robotposition(t,l).
@@ -155,16 +161,55 @@ theory solution: warehousevoc{
     //Causes
     {
         ! t [Time] l1, l2 [location]: C_NRobotposition(t,l1) <- C_Robotposition(t,l2) & l1 ~=l2.
-        
-        
-        
         /******************************************************************************************************Not sure if this works*********************************************************************************************************************************/
         ! t [Time] : C_Robotposition(t, grid(xco + moveXWhenFacing(d), yco + moveYWhenFacing(d))) <- execute(t,moveFront) &facing(t) = d & robotposition(t) = (xco,yco).
         ! t [Time] : C_Robotposition(t, grid(xco - moveXWhenFacing(d), yco - moveYWhenFacing(d))) <- execute(t,moveBack) & facing(t) = d & robotposition(t) = (xco,yco).
         ! l [location] : I_Robotposition(l) <- robotposition(0) = l.
     }
     
-
+/*** CARRYING ***/
+    
+    //Preconditions
+    
+    ! t [Time] p [pallet]: execute(t, pickUp(t,p))& facing(t)=d & robotposition(xco, yco) => position(t,p)= grid()
+    
+    //Inertia
+    {
+        ! p [pallet]: carried(0,p) <- I_Carried(p).
+        ! t [Time]: p [pallet]: carried(Next(t), p) <- C_Carried(t, p).
+        ! t [time]: p [pallet]: carried(Next(t), p) <- carried(t,p) & ~C_NCarried(t,p).
+    }
+    //Causes
+    {
+        ! t [Time]: C_Carried(t,p) <- execute(t, pickUp(p))
+        ! p [pallet]: I_Carried(p) <- carried(0,p).
+        
+    }
+    
+    
+/*** ON ***/
+    //Inertia
+    {
+        
+    }
+    
+    
+    
+    
+    /**
+    carried(Time,pallet)
+    C_Carried(Time, pallet)
+    C_NCarried(Time,pallet)
+    I_Carried(pallet)
+    
+    C_On(Time, pallet, pallet)
+    C_NOn(Time, pallet, pallet)
+    I_On(pallet, pallet)
+    
+    C_Position(Time, pallet)
+    C_NPosition(Time, pallet)
+    I_Position(pallet)
+	**/
 }
 
 
