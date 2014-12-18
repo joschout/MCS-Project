@@ -30,9 +30,77 @@ LTCvocabulary warehousevoc{
 	
 	type height isa nat
 	ceiling: height
+    
+    //function which maps a pallet to its height
+    heightOf(Time, pallet): height
+    
 }
 
 theory solution: warehousevoc{
+    
+            
+    // the pallets
+    // at each moment, there is at most one pallet carried by the robot
+    ! t [Time]: ?=<1 p1 [pallet] : carried(t,p1).
+    
+    // at each moment, if a pallet is being carried, then there is no pallet above or below that pallet
+    ! t [Time] p1 [pallet]: carried(t,p1) => ~? p2 [pallet] : on(t, p2, p1)|on(t, p1,p2).
+    
+    //  at each moment, there is can be at most one pallet on top of a pallet
+    ! t [Time] p1 [pallet]: ?=<1 p2 [pallet]: on(t, p1, p2).
+    
+    //  at each moment, there can be at most one pallet below a pallet
+    ! t [Time] p1 [pallet]: ?=<1 p2 [pallet]: on(t, p2, p1).
+    
+    // at each moment, for all pallets, there cannot be a pallet which is at the same time below and above that pallet
+    ! t [Time] p1 , p2 [pallet]: ~(on(t,p1,p2)&on(t,p2,p1)).
+    
+    // at each moment, a pallet cannot be on top of itself
+    ! t [Time] p1 [pallet]: ~on(t,p1,p1).
+    
+    //  at each moment, if a location is inaccessible, then there cannot be pallet positioned at that location
+    ! t [Time] l1 [location]: inaccessible(l1) => ~? p1 [pallet]: position(t,p1) = l1.
+    
+    /* at each moment, the height of a pallet is at least 1 (on the ground or being carried)
+     and the heigth of a pallet is at most the height of the ceiling */
+    ! t [Time] p1 [pallet] : 1 =< heightOf(t,p1) & heightOf(t,p1) =< ceiling.
+    
+    // at each moment, a pallet is being carried if and only if its position is the robot's postion
+    ! t [Time] p1 [pallet]: carried(t,p1) <=> position(t,p1) = robotposition(t).
+       
+    
+    // the robot
+    // at each moment, the robot always faces exactly one direction
+     ! t [Time]: ?1 d [dir]: facing(t) = d.
+    
+    // at each moment, if a location is inaccessible, then the robot cannot stand on that location
+    ! t [Time] l1 [location]: inaccessible(l1) => robotposition(t) ~= l1.
+    
+    // at each moment, there cannot be a pallet on the robot's position if it isn't carried
+	! t [Time] l1 [location] : (robotposition(t) = l1)=> ~(? p1 [pallet]: 	             position(t,p1) = l1 & ~carried(t,p1)).    
+    
+    
+    //hoogte
+    //at each moment, if two different pallets have the same position, then they cannot have the same height
+    ! t [Time] p1 , p2 [pallet]: heightOf(t,p1)~=heightOf(t,p2) <= position(t,p1) = position(t,p2) &p1 ~= p2.
+   
+    // height is inductively defined
+    {
+     //if a pallet is being carried, then it must have a height of 1
+     ! t [Time] p1 [pallet]: heightOf(t,p1) = 1  <- carried(t,p1).
+     
+     /* for all pallets p1: if there isn't a pallet below p1 and if p1 isn't being carried, then the height of p1 is 1. This is a base case which defines the height for pallets lying on the ground.       
+        */
+     ! t [Time] p1 [pallet]: heightOf(t,p1)= 1<- (~? p2 [pallet]: on(t,p2, p1)&~carried(t,p1)).  
+        
+     // if pallet 2 is on top of pallet 1, then pallet 2 has a height which is 1 higher
+     ! t [Time] p1, p2 [pallet]: heightOf(t,p1) = heightOf(t,p2)+1 <- on(t,p2,p1). 
+  
+    }
+    
+    
+    
+    
 
 }
 
