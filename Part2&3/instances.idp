@@ -131,15 +131,15 @@ structure NotOK6:warehousevoc{
 
 //My test
 structure TestGround:warehousevoc{
-	Time = {0..5}
+	Time = {0..3}
 	Start = 0
 	Next = {0->1;1->2;2->3;}
-	xco={1..6}
-	yco={1..6}
+	xco={1..3}
+	yco={1..3}
 	height = {0..3}
     inaccessible={}
     ceiling = 3
-    execute<ct> = {0, moveFront}
+    execute<ct> = {0, rotateRight; 1, moveFront}
     robotposition<ct> = {0 -> grid(2,2)}
     facing<ct> = {0->north()}
 }
