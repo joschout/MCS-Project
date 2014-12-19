@@ -2,10 +2,10 @@
 include "solution.idp"
 procedure check(){
 	structures = { 
-		{NotOK1, 	"NotOK1",	0},
-		{NotOK2, 	"NotOK2",	0},
-		{NotOK3, 	"NotOK3",	0},
-		{NotOK4, 	"NotOK4",	0},
+		//{NotOK1, 	"NotOK1",	0},
+		//{NotOK2, 	"NotOK2",	0},
+		//{NotOK3, 	"NotOK3",	0},
+		//{NotOK4, 	"NotOK4",	0},
 		{NotOK5, 	"NotOK5",	0},		
 		{NotOK6, 	"NotOK6",	0},
         {TestGround, "Test",	1},
@@ -131,14 +131,17 @@ structure NotOK6:warehousevoc{
 
 //My test
 structure TestGround:warehousevoc{
-	Time = {0..10}
+	Time = {0..5}
 	Start = 0
 	Next = {0->1;1->2;2->3;}
-	xco={1..3}
-	yco={1..3}
+	xco={1..6}
+	yco={1..6}
 	height = {0..3}
+    inaccessible={}
     ceiling = 3
-    facing<ct> = {0->north(); 1 -> east()}
+    execute<ct> = {0, moveFront}
+    robotposition<ct> = {0 -> grid(2,2)}
+    facing<ct> = {0->north()}
 }
 
 //unique solution

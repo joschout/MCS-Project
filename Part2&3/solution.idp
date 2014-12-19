@@ -150,37 +150,37 @@ theory solution: warehousevoc{
         {
         ! t[Time] x[xco] y[yco]:
         locationInFront(t) = grid(x,y+1) <-
-        facing(t) = north & robotposition(t) = grid(x,y).
+        (facing(t) = north) & (robotposition(t) = grid(x,y)).
 
         ! t[Time] x[xco] y[yco]:
         locationInFront(t) = grid(x+1,y) <-
-        facing(t) = east & robotposition(t) = grid(x,y).
+        (facing(t) = east) & (robotposition(t) = grid(x,y)).
 
         ! t[Time] x[xco] y[yco]:
         locationInFront(t)= grid(x,y-1) <-
-        facing(t) = south & robotposition(t) = grid(x,y).
+        (facing(t) = south) & (robotposition(t) = grid(x,y)).
 
         ! t[Time] x[xco] y[yco]:
         locationInFront(t) = grid(x-1,y) <-
-        facing(t) = west & robotposition(t) = grid(x,y).
+        (facing(t) = west) & (robotposition(t) = grid(x,y)).
     }
     
         {
         ! t[Time] x[xco] y[yco]:
         locationBehind(t)=grid(x,y-1) <-
-        facing(t) = north & robotposition(t) = grid(x,y).
+        (facing(t) = north) & (robotposition(t) = grid(x,y)).
 
         ! t[Time] x[xco] y[yco]:
         locationBehind(t)=grid(x-1,y) <-
-        facing(t) = east & robotposition(t) = grid(x,y).
+        (facing(t) = east) & (robotposition(t) = grid(x,y)).
 
         ! t[Time] x[xco] y[yco]:
         locationBehind(t)=grid(x,y+1) <-
-        facing(t) = south & robotposition(t) = grid(x,y).
+        (facing(t) = south) & (robotposition(t) = grid(x,y)).
 
         ! t[Time] x[xco] y[yco]:
         locationBehind(t)=grid(x+1,y) <-
-        facing(t) = west & robotposition(t) = grid(x,y).
+        (facing(t) = west) & (robotposition(t) = grid(x,y)).
     }
     
     
@@ -192,17 +192,17 @@ theory solution: warehousevoc{
        ! d [dir]: facing(0)=d <-I_Facing(d).
         // if there is a cause for the robot to change its direction to d at time t, the robot will be facing d at time Next(t)
        ! d [dir] t [Time]: facing(Next(t))= d <- C_Facing(t,d).
-       ! d [dir] t [Time]: facing(Next(t))=d <- facing(t)=d &~C_NFacing(t,d).
+       ! d [dir] t [Time]: facing(Next(t))=d <- (facing(t)=d) &~C_NFacing(t,d).
     }
     //Causes
     {
       ! t [Time] d, d2 [dir]: C_NFacing(t,d) <- C_Facing(t,d2) & d~=d2.
      
         
-      ! t [Time]: C_Facing(t, north) <- (facing(t) = west & execute(t, rotateRight) ) | (facing(t) = east & execute(t, rotateLeft) ).
-      ! t [Time]: C_Facing(t, east) <- (facing(t) = north & execute(t, rotateRight) ) | (facing(t) = south & execute(t, rotateLeft) ).
-      ! t [Time]: C_Facing(t, south) <- (facing(t) = east & execute(t, rotateRight) ) | (facing(t) = west & execute(t, rotateLeft) ).    
-      ! t [Time]: C_Facing(t, west) <- (facing(t) = south & execute(t, rotateRight) ) | (facing(t) = north & execute(t, rotateLeft) ).  
+      ! t [Time]: C_Facing(t, north) <- ((facing(t) = west) & execute(t, rotateRight) ) | ((facing(t) = east) & execute(t, rotateLeft) ).
+      ! t [Time]: C_Facing(t, east) <- ((facing(t) = north) & execute(t, rotateRight) ) | ((facing(t) = south) & execute(t, rotateLeft) ).
+      ! t [Time]: C_Facing(t, south) <- ((facing(t) = east)& execute(t, rotateRight) ) | ((facing(t) = west) & execute(t, rotateLeft) ).    
+      ! t [Time]: C_Facing(t, west) <- ((facing(t) = south) & execute(t, rotateRight) ) | ((facing(t) = north)& execute(t, rotateLeft) ).  
 
       ! d[dir]: I_Facing(d) <- facing(0) = d.
     }
@@ -217,7 +217,7 @@ theory solution: warehousevoc{
     }
     //Causes
     {
-        ! t [Time] l1, l2 [location]: C_NRobotposition(t,l1) <- C_Robotposition(t,l2) & l1 ~=l2.
+        ! t [Time] l1, l2 [location]: C_NRobotposition(t,l1) <- (robotposition(t)= l1)& C_Robotposition(t,l2) & (l1 ~=l2).
         /******************************************************************************************************Not sure if this works*********************************************************************************************************************************/
         ! t [Time] : C_Robotposition(t, locationInFront(t)) <- execute(t,moveFront).
         ! t [Time] : C_Robotposition(t, locationBehind(t)) <- execute(t,moveBack).
@@ -228,7 +228,7 @@ theory solution: warehousevoc{
     
     //Preconditions
     
-    ! t [Time] p [pallet]: execute(t, pickUp(p)) => position(t, p) = locationInFront(t) & ~?p2 [pallet]: on(t, p, p2).
+    ! t [Time] p [pallet]: execute(t, pickUp(p)) => (position(t, p) = locationInFront(t)) & ~?p2 [pallet]: on(t, p, p2).
     ! t [Time] p [pallet]: execute(t, putDown(p)) => carried(t, p). //Location misschien bijvoegen
     
     //Inertia
