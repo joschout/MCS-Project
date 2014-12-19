@@ -167,6 +167,23 @@ theory solution: warehousevoc{
         facing(t) = west & robotposition(t) = grid(x,y).
     }
     
+        {
+        ! t[Time] x[xco] y[yco]:
+        locationBehind(t)=grid(x,y-1) <-
+        facing(t) = north & robotposition(t) = grid(x,y).
+
+        ! t[Time] x[xco] y[yco]:
+        locationBehind(t)=grid(x-1,y) <-
+        facing(t) = east & robotposition(t) = grid(x,y).
+
+        ! t[Time] x[xco] y[yco]:
+        locationBehind(t)=grid(x,y+1) <-
+        facing(t) = south & robotposition(t) = grid(x,y).
+
+        ! t[Time] x[xco] y[yco]:
+        locationBehind(t)=grid(x+1,y) <-
+        facing(t) = west & robotposition(t) = grid(x,y).
+    }
     
     
     
