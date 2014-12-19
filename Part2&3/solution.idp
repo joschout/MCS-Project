@@ -74,6 +74,9 @@ theory solution: warehousevoc{
     }
     
     
+    ! t [Time] : ?=<1 a[action]: execute(t, action).
+    
+    
 
 /************************ The static predicates from the 1st part *************************/
             
@@ -234,6 +237,8 @@ theory solution: warehousevoc{
         
         ! p [pallet] l [location]: I_Position(p, l) <- position(0, p) = l.
     }
+    
+
     
 }
 
