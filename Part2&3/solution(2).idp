@@ -1,0 +1,285 @@
+/** 
+* Skeleton for the second part of the project. 
+*
+* No names in this skeleton can be changed, you can add things to the vocabulary and you should definitely add stuff to the theory. 
+*/
+
+include<LTC>
+
+LTCvocabulary warehousevoc{
+	type Time isa nat
+	Start: Time
+	partial Next(Time):Time
+
+	type pallet
+	type action constructed from {rotateRight, rotateLeft, moveFront, moveBack, pickUp(pallet), putDown(pallet)}	
+	execute(Time,action)
+
+	on(Time,pallet,pallet)
+	carried(Time,pallet)
+
+	type xco isa nat
+	type yco isa nat	
+	type location constructed from {grid(xco,yco)}
+	inaccessible(location)
+	robotposition(Time): location
+	position(Time,pallet): location
+	
+	type dir constructed from {north, east, south, west}
+	facing(Time): dir
+    partial clockwiseTurn(dir):dir
+    partial counterClockwiseTurn(dir):dir
+    
+	
+	type height isa nat
+	ceiling: height
+    
+    //function which maps a pallet to its height
+    heightOf(Time, pallet): height
+    
+    C_Facing(Time, dir)
+    C_NFacing(Time, dir)
+    I_Facing(dir)
+    
+    C_Robotposition(Time, location)
+    C_NRobotposition(Time, location)
+    I_Robotposition(location)
+    
+    
+    C_Carried(Time, pallet)
+    C_NCarried(Time,pallet)
+    I_Carried(pallet)
+    
+    C_On(Time, pallet, pallet)
+    C_NOn(Time, pallet, pallet)
+    I_On(pallet, pallet)
+    
+    C_Position(Time, pallet)
+    C_NPosition(Time, pallet)
+    I_Position(pallet)
+    
+    
+    partial moveXWhenFacing(dir): dif
+    type dif isa int
+    partial moveYWhenFacing(dir): dif
+}
+
+theory solution: warehousevoc{
+
+/************************ The static predicates from the 1st part *************************/
+            
+/*** the pallets ***/
+    // at each moment, there is at most one pallet carried by the robot
+    ! t [Time]: ?=<1 p1 [pallet] : carried(t,p1).
+    
+    // at each moment, if a pallet is being carried, then there is no pallet above or below that pallet
+    ! t [Time] p1 [pallet]: carried(t,p1) => ~? p2 [pallet] : on(t, p2, p1)|on(t, p1,p2).
+    
+    //  at each moment, there is can be at most one pallet on top of a pallet
+    ! t [Time] p1 [pallet]: ?=<1 p2 [pallet]: on(t, p1, p2).
+    
+    //  at each moment, there can be at most one pallet below a pallet
+    ! t [Time] p1 [pallet]: ?=<1 p2 [pallet]: on(t, p2, p1).
+    
+    // at each moment, for all pallets, there cannot be a pallet which is at the same time below and above that pallet
+    ! t [Time] p1 , p2 [pallet]: ~(on(t,p1,p2)&on(t,p2,p1)).
+    
+    // at each moment, a pallet cannot be on top of itself
+    ! t [Time] p1 [pallet]: ~on(t,p1,p1).
+    
+    //  at each moment, if a location is inaccessible, then there cannot be pallet positioned at that location
+    ! t [Time] l1 [location]: inaccessible(l1) => ~? p1 [pallet]: position(t,p1) = l1.
+    
+    /* at each moment, the height of a pallet is at least 1 (on the ground or being carried)
+     and the heigth of a pallet is at most the height of the ceiling */
+    ! t [Time] p1 [pallet] : 1 =< heightOf(t,p1) & heightOf(t,p1) =< ceiling.
+    
+    // at each moment, a pallet is being carried if and only if its position is the robot's postion
+    ! t [Time] p1 [pallet]: carried(t,p1) <=> position(t,p1) = robotposition(t).
+       
+    
+/*** the robot ***/
+    // at each moment, the robot always faces exactly one direction
+     ! t [Time]: ?1 d [dir]: facing(t) = d.
+    
+    // at each moment, if a location is inaccessible, then the robot cannot stand on that location
+    ! t [Time] l1 [location]: inaccessible(l1) => robotposition(t) ~= l1.
+    
+    // at each moment, there cannot be a pallet on the robot's position if it isn't carried
+	! t [Time] l1 [location] : (robotposition(t) = l1)=> ~(? p1 [pallet]: 	             position(t,p1) = l1 & ~carried(t,p1)).    
+    
+    
+/*** height ***/
+    //at each moment, if two different pallets have the same position, then they cannot have the same height
+    ! t [Time] p1 , p2 [pallet]: heightOf(t,p1)~=heightOf(t,p2) <= position(t,p1) = position(t,p2) &p1 ~= p2.
+   
+    // height is inductively defined
+    {
+     //if a pallet is being carried, then it must have a height of 1
+     ! t [Time] p1 [pallet]: heightOf(t,p1) = 1  <- carried(t,p1).
+     
+     /* for all pallets p1: if there isn't a pallet below p1 and if p1 isn't being carried, then the height of p1 is 1. This is a base case which defines the height for pallets lying on the ground.       
+        */
+     ! t [Time] p1 [pallet]: heightOf(t,p1)= 1<- (~? p2 [pallet]: on(t,p2, p1)&~carried(t,p1)).  
+        
+     // if pallet 2 is on top of pallet 1, then pallet 2 has a height which is 1 higher
+     ! t [Time] p1, p2 [pallet]: heightOf(t,p1) = heightOf(t,p2)+1 <- on(t,p2,p1). 
+  
+    }
+    
+/************************** The second part *************************/
+
+    
+    
+    
+/*** FACING ***/
+    //Inertia
+    {
+        // for all directions d: if d is the initial direction, then the robot facesd at time o
+       ! d [dir]: facing(0)=d <-I_Facing(d).
+        // if there is a cause for the robot to change its direction to d at time t, the robot will be facing d at time Next(t)
+       ! d [dir] t [Time]: facing(Next(t))= d <- C_Facing(t,d).
+       ! d [dir] t [Time]: facing(Next(t))=d <- facing(t)=d &~C_NFacing(t,d).
+    }
+    //Causes
+    {
+      ! t [Time] d, d2 [dir]: C_NFacing(t,d) <- C_Facing(t,d2) & d~=d2.
+     
+      ! t [Time] d [dir]: C_Facing(t,clockwiseTurn(d)) <- execute(t,rotateRight).
+      ! t [Time] d [dir]: C_Facing(t,counterClockwiseTurn(d)) <- execute(t,rotateLeft).
+      ! d[dir]: I_Facing(d) <- facing(0) = d
+    }
+    
+    
+/*** MOVING ***/
+    //Inertia
+    {
+       ! l [location]: robotposition(0)=l <- I_Robotposition(l).
+       ! t [Time] l [location]: robotposition(Next(t))=l <- C_Robotposition(t,l).
+       ! t [Time] l [location]: robotposition(Next(t))=l <- robotposition(t)=l & ~C_NRobotposition(t,l).        
+    }
+    //Causes
+    {
+        ! t [Time] l1, l2 [location]: C_NRobotposition(t,l1) <- C_Robotposition(t,l2) & l1 ~=l2.
+        /******************************************************************************************************Not sure if this works*********************************************************************************************************************************/
+        ! t [Time] : C_Robotposition(t, grid(xco + moveXWhenFacing(d), yco + moveYWhenFacing(d))) <- execute(t,moveFront) &facing(t) = d & robotposition(t) = (xco,yco).
+        ! t [Time] : C_Robotposition(t, grid(xco - moveXWhenFacing(d), yco - moveYWhenFacing(d))) <- execute(t,moveBack) & facing(t) = d & robotposition(t) = (xco,yco).
+        ! l [location] : I_Robotposition(l) <- robotposition(0) = l.
+    }
+    
+/*** CARRYING ***/
+    
+    //Preconditions
+    
+    ! t [Time] p [pallet]: execute(t, pickUp(t,p))& facing(t)=d & robotposition(xco, yco) => position(t,p)= grid()
+    
+    //Inertia
+    {
+        ! p [pallet]: carried(0,p) <- I_Carried(p).
+        ! t [Time]: p [pallet]: carried(Next(t), p) <- C_Carried(t, p).
+        ! t [time]: p [pallet]: carried(Next(t), p) <- carried(t,p) & ~C_NCarried(t,p).
+    }
+    //Causes
+    {
+        ! t [Time]: C_Carried(t,p) <- execute(t, pickUp(p))
+        ! p [pallet]: I_Carried(p) <- carried(0,p).
+        
+    }
+    
+    
+/*** ON ***/
+    //Inertia
+    {
+        
+    }
+    
+    
+    
+    
+    /**
+    carried(Time,pallet)
+    C_Carried(Time, pallet)
+    C_NCarried(Time,pallet)
+    I_Carried(pallet)
+    
+    C_On(Time, pallet, pallet)
+    C_NOn(Time, pallet, pallet)
+    I_On(pallet, pallet)
+    
+    C_Position(Time, pallet)
+    C_NPosition(Time, pallet)
+    I_Position(pallet)
+	**/
+}
+
+
+theory verification1: warehousevoc{
+	//Verify something here
+}
+
+procedure verification1proc(struc){
+	//Do something here: verify verification1 in the context of structure struc. 
+	//At least print whether the verification is satisified or not.
+}
+
+theory verification2: warehousevoc{
+	//Verify something here
+}
+
+procedure verification2proc(struc){
+	//Do something here: verify verification2 in the context of structure struc. 
+	//At least print whether the verification is satisified or not.
+}
+
+theory verification3: warehousevoc{
+	//Verify something here
+}
+
+procedure verification3proc(struc){
+	//Do something here: verify verification3 in the context of structure struc. 
+	//At least print whether the verification is satisified or not.
+}
+
+
+procedure allVerifications(){
+	strucToCheck = verStruc
+	verification1proc(strucToCheck)
+	verification2proc(strucToCheck)
+	verification3proc(strucToCheck)
+}
+
+
+structure verStruc:warehousevoc{
+	Time = {0..16}
+	Start = 0
+	Next = {0->1;1->2;2->3;3->4;4->5;5->6;6->7;7->8;8->9;9->10;10->11;11->12;12->13;13->14;14->15;15->16}
+	xco={1..3}
+	yco={1..3}
+	height = {0..3}
+	pallet={p1;p2}
+	inaccessible={grid(3,2);grid(2,2)}
+	ceiling = 3
+    clockwiseTurn = {north->east;east->south;south->west;west->north}
+    counterClockwiseTurn = {north->west; west->south;south->east;east->north}
+    moveXWhenFacing = {north->0; east->1;south->0;west->1 }
+    
+}
+
+
+procedure main(){
+    //Depending on what you wish to do, execute one of the following methods:
+	 
+    //This method (defined in the instances.idp) checks some given worlds for consistency
+	check()
+
+    //This method lets you walk through your solutions interactively
+	simulate_interactive(solution,verStruc)
+	
+    //This method walks randomly trough the solutions, 5 steps deep
+	simulate_random(solution,verStruc,5)
+	
+    //This method (defined above) simply searches models of your theory
+	stdoptions.nbmodels=5 //Find 5 models	
+	printmodels(modelexpand(solution,verStruc))
+	
+}
