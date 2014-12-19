@@ -74,7 +74,7 @@ theory solution: warehousevoc{
     }
     
     
-    ! t [Time] : ?=<1 a[action]: execute(t, action).
+    ! t [Time] : ?=<1 a[action]: execute(t, a).
     
     
 
