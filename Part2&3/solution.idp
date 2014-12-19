@@ -329,7 +329,7 @@ structure verStruc:warehousevoc{
 	inaccessible={grid(3,2);grid(2,2)}
 	ceiling = 3
     clockwiseTurn = {north()->east();east()->south();south()->west();west()->north()}
-    counterClockwiseTurn = {north()->west(); west()->south();south()->east();east()->north()}
+    counterClockwiseTurn = {"north"->"west"; "west"->"south";"south"->"east";"east"->"north"}
     moveXWhenFacing = {north()->0; east()->1;south()->0;west()->-1 }
     moveYWhenFacing = {north()->1; east()->0;south()->-1;west()->0 }
     
