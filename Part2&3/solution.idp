@@ -3,7 +3,6 @@
 *
 * No names in this skeleton can be changed, you can add things to the vocabulary and you should definitely add stuff to the theory. 
 */
-
 include<LTC>
 
 LTCvocabulary warehousevoc{
@@ -54,9 +53,9 @@ LTCvocabulary warehousevoc{
     C_NOn(Time, pallet, pallet)
     I_On(pallet, pallet)
     
-    C_Position(Time, pallet)
-    C_NPosition(Time, pallet)
-    I_Position(pallet)
+    C_Position(Time, pallet, location)
+    C_NPosition(Time, pallet, location)
+    I_Position(pallet, location)
     
     type dif isa int
     partial moveXWhenFacing(dir): dif
@@ -113,7 +112,7 @@ theory solution: warehousevoc{
     
 /*** height ***/
     //at each moment, if two different pallets have the same position, then they cannot have the same height
-    ! t [Time] p1 , p2 [pallet]: heightOf(t,p1)~=heightOf(t,p2) <= position(t,p1) = position(t,p2) &p1 ~= p2.
+    ! t [Time] p1 [pallet] p2 [pallet]: heightOf(t,p1)~=heightOf(t,p2) <= position(t,p1) = position(t,p2) &p1 ~= p2.
    
     // height is inductively defined
     {
@@ -132,8 +131,9 @@ theory solution: warehousevoc{
 /************************** The second part *************************/
 
     {
-    locationInFront(t) = grid(xco+moveXWhenFacing(d), yco + moveYWhenFacing(d))<- robotposition(t) = grid(xco, yco)& facing(t) = d.
-    locationBehind(t) = grid(xco-moveXWhenFacing(d), yco - moveYWhenFacing(d))<- robotposition(t) = grid(xco, yco)& facing(t) = d.
+        ! x [xco] y [yco] t [Time] d [dir]:
+    locationInFront(t) = grid(x+moveXWhenFacing(d), y + moveYWhenFacing(d))<- robotposition(t) = grid(x, y)& facing(t) = d.
+    ! x [xco] y [yco] t [Time] d [dir]: locationBehind(t) = grid(x-moveXWhenFacing(d), y - moveYWhenFacing(d))<- robotposition(t) = grid(x, y)& facing(t) = d.
     }
     
     
@@ -152,7 +152,7 @@ theory solution: warehousevoc{
      
       ! t [Time] d [dir]: C_Facing(t,clockwiseTurn(d)) <- execute(t,rotateRight).
       ! t [Time] d [dir]: C_Facing(t,counterClockwiseTurn(d)) <- execute(t,rotateLeft).
-      ! d[dir]: I_Facing(d) <- facing(0) = d
+      ! d[dir]: I_Facing(d) <- facing(0) = d.
     }
     
     
@@ -161,13 +161,13 @@ theory solution: warehousevoc{
     {
        ! l [location]: robotposition(0)=l <- I_Robotposition(l).
        ! t [Time] l [location]: robotposition(Next(t))=l <- C_Robotposition(t,l).
-       ! t [Time] l [location]: robotposition(Next(t))=l <- robotposition(t)=l & ~C_NRobotposition(t,l).        
+       ! t [Time] l [location]: robotposition(Next(t))=l <- (robotposition(t)=l) & ~C_NRobotposition(t,l).        
     }
     //Causes
     {
         ! t [Time] l1, l2 [location]: C_NRobotposition(t,l1) <- C_Robotposition(t,l2) & l1 ~=l2.
         /******************************************************************************************************Not sure if this works*********************************************************************************************************************************/
-        ! t [Time] : C_Robotposition(t, locationInFront(t))) <- execute(t,moveFront).
+        ! t [Time] : C_Robotposition(t, locationInFront(t)) <- execute(t,moveFront).
         ! t [Time] : C_Robotposition(t, locationBehind(t)) <- execute(t,moveBack).
         ! l [location] : I_Robotposition(l) <- robotposition(0) = l.
     }
@@ -187,8 +187,8 @@ theory solution: warehousevoc{
     }
     //Causes
     {
-        ! t [Time]: C_Carried(t,p) <- execute(t, pickUp(p)).
-        ! t [Time]: C_NCarried(t,p) <- execute(t, putDown(p)).
+        ! t [Time] p [pallet]: C_Carried(t,p) <- execute(t, pickUp(p)).
+        ! t [Time] p [pallet]: C_NCarried(t,p) <- execute(t, putDown(p)).
         ! p [pallet]: I_Carried(p) <- carried(0,p).        
     }
     
@@ -200,16 +200,33 @@ theory solution: warehousevoc{
      	! t [Time] p1, p2 [pallet]: on(Next(t), p1, p2) <- C_On(t,p1,p2).
      	! t [Time] p1, p2 [pallet]: on(Next(t), p1,p2) <- on(t,p1,p2) & ~C_NOn(t,p1,p2).
     }
+    //Causes
     
     {
-     	! t [Time] p1, p2 [pallet]: C_On(t, p1, p2) <- execute(t, putDown(p2)) & locationInFront(t) = position(t, p1)// & ~?p3 [pallet] : on(t, p1, p3).
-        ! t [Time], p1, p2 [pallet]: C_Non(t, p1, p2) <- execute(t, pickUp(p2)).
+     	! t [Time] p1, p2 [pallet]: C_On(t, p1, p2) <- execute(t, putDown(p2)) & (locationInFront(t) = position(t, p1)).// & ~?p3 [pallet] : on(t, p1, p3).
+        ! t [Time], p1, p2 [pallet]: C_NOn(t, p1, p2) <- execute(t, pickUp(p2)).
+        ! p1,p2 [pallet]: I_On(p1,p2) <- on(0, p1, p2).
     }
-/**
-    C_Position(Time, pallet)
-    C_NPosition(Time, pallet)
-    I_Position(pallet)
-	**/
+/*** POSITION ***/
+    //Inertia
+    {
+        ! p [pallet] l [location]:position(0, p) = l <- I_Position(p, l).
+        ! t [Time] p [pallet] l [location]: position(Next(t), p) = l <- C_Position(t, p, l).
+        ! t [Time] p [pallet] l [location]: position(Next(t), p) = l <- position(t, p) = l & ~C_NPosition(t, p, l).
+    }
+    //Causes
+    {
+        ! t [Time] p [pallet]: C_Position(t, p, robotposition(t)) <- execute(t, pickUp(p)).
+        ! t [Time] p [pallet]: C_Position(t, p, locationInFront(t)) <- execute(t, putDown(p)).
+        ! t [Time] p [pallet] l [location]: C_Position(t, p, l) <- C_Robotposition(t, l) & carried(t, p).
+        
+        ! t [Time] p [pallet]: C_NPosition(t, p, position(t,p)) <- execute(t, pickUp(p)).
+        ! t [Time] p [pallet]: C_NPosition(t, p, position(t,p)) <- execute(t, putDown(p)).
+        ! t [Time] p [pallet] l [location]: C_NPosition(t, p, l) <- C_NRobotposition(t, l) & carried(t, p).
+        
+        ! p [pallet] l [location]: I_Position(p, l) <- position(0, p) = l.
+    }
+    
 }
 
 
@@ -259,27 +276,29 @@ structure verStruc:warehousevoc{
 	pallet={p1;p2}
 	inaccessible={grid(3,2);grid(2,2)}
 	ceiling = 3
-    clockwiseTurn = {north->east;east->south;south->west;west->north}
-    counterClockwiseTurn = {north->west; west->south;south->east;east->north}
-    moveXWhenFacing = {north->0; east->1;south->0;west->1 }
+    clockwiseTurn = {north()->east();east()->south();south()->west();west()->north()}
+    counterClockwiseTurn = {north()->west(); west()->south();south()->east();east()->north()}
+    moveXWhenFacing = {north()->0; east()->1;south()->0;west()->-1 }
+    moveYWhenFacing = {north()->1; east()->0;south()->-1;west()->0 }
     
 }
 
 
 procedure main(){
     //Depending on what you wish to do, execute one of the following methods:
+    print("Main")
 	 
     //This method (defined in the instances.idp) checks some given worlds for consistency
 	check()
 
     //This method lets you walk through your solutions interactively
-	simulate_interactive(solution,verStruc)
+	//simulate_interactive(solution,verStruc)
 	
     //This method walks randomly trough the solutions, 5 steps deep
-	simulate_random(solution,verStruc,5)
+	//simulate_random(solution,verStruc,5)
 	
     //This method (defined above) simply searches models of your theory
-	stdoptions.nbmodels=5 //Find 5 models	
-	printmodels(modelexpand(solution,verStruc))
+	//stdoptions.nbmodels=5 //Find 5 models	
+	//printmodels(modelexpand(solution,verStruc))
 	
 }

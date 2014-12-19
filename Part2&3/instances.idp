@@ -1,5 +1,5 @@
-//include "../modeloplossing/solution.idp" //put your solution here
 
+include "solution.idp"
 procedure check(){
 	structures = { 
 		{NotOK1, 	"NotOK1",	0},
@@ -12,6 +12,7 @@ procedure check(){
 	}
 		
 	for i = 1, #structures do
+    	print("check")
 		local current = structures[i]
 		local struc=current[1]
 		local name = current[2]
