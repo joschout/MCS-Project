@@ -26,8 +26,6 @@ LTCvocabulary warehousevoc{
 	
 	type dir constructed from {north, east, south, west}
 	facing(Time): dir
-    partial clockwiseTurn(dir):dir
-    partial counterClockwiseTurn(dir):dir
     
 	
 	type height isa nat
@@ -58,8 +56,8 @@ LTCvocabulary warehousevoc{
     I_Position(pallet, location)
     
     type dif isa int
-    partial moveXWhenFacing(dir): dif
-    partial moveYWhenFacing(dir): dif
+  //  partial moveXWhenFacing(dir): dif
+   // partial moveYWhenFacing(dir): dif
     
     locationInFront(Time):location
     locationBehind(Time):location
@@ -200,8 +198,12 @@ theory solution: warehousevoc{
     {
       ! t [Time] d, d2 [dir]: C_NFacing(t,d) <- C_Facing(t,d2) & d~=d2.
      
-      ! t [Time]: C_Facing(t,clockwiseTurn(facing(t))) <- execute(t,rotateRight) .
-      ! t [Time]: C_Facing(t,counterClockwiseTurn(facing(t))) <- execute(t,rotateLeft).
+        
+      ! t [Time]: C_Facing(t, north) <- (facing(t) = west & execute(t, rotateRight) ) | (facing(t) = east & execute(t, rotateLeft) ).
+      ! t [Time]: C_Facing(t, east) <- (facing(t) = north & execute(t, rotateRight) ) | (facing(t) = south & execute(t, rotateLeft) ).
+      ! t [Time]: C_Facing(t, south) <- (facing(t) = east & execute(t, rotateRight) ) | (facing(t) = west & execute(t, rotateLeft) ).    
+      ! t [Time]: C_Facing(t, west) <- (facing(t) = south & execute(t, rotateRight) ) | (facing(t) = north & execute(t, rotateLeft) ).  
+
       ! d[dir]: I_Facing(d) <- facing(0) = d.
     }
     
@@ -328,10 +330,10 @@ structure verStruc:warehousevoc{
 	pallet={p1;p2}
 	inaccessible={grid(3,2);grid(2,2)}
 	ceiling = 3
-    clockwiseTurn = {north()->east();east()->south();south()->west();west()->north()}
-    counterClockwiseTurn = {north()->west(); west()->south();south()->east();east()->north()}
-    moveXWhenFacing = {north()->0; east()->1;south()->0;west()->-1 }
-    moveYWhenFacing = {north()->1; east()->0;south()->-1;west()->0 }
+ //   clockwiseTurn = {north()->east();east()->south();south()->west();west()->north()}
+  //  counterClockwiseTurn = {north()->west(); west()->south();south()->east();east()->north()}
+   // moveXWhenFacing = {north()->0; east()->1;south()->0;west()->-1 }
+   // moveYWhenFacing = {north()->1; east()->0;south()->-1;west()->0 }
     
 }
 
