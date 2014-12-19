@@ -66,6 +66,14 @@ LTCvocabulary warehousevoc{
 }
 
 theory solution: warehousevoc{
+    
+    /**** TIME THEORY****/
+    {
+        Start = MIN[:Time].
+        !t : Next(t) = t + 1 <- Time(t +1).
+    }
+    
+    
 
 /************************ The static predicates from the 1st part *************************/
             
