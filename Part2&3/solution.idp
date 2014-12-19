@@ -138,11 +138,33 @@ theory solution: warehousevoc{
     
 /************************** The second part *************************/
 
-    {
+    
+/* Inductive definition of locationInFront and locationBehind */
+ /*   {
         ! x [xco] y [yco] t [Time] d [dir]:
     locationInFront(t) = grid(x+moveXWhenFacing(d), y + moveYWhenFacing(d))<- robotposition(t) = grid(x, y)& facing(t) = d.
     ! x [xco] y [yco] t [Time] d [dir]: locationBehind(t) = grid(x-moveXWhenFacing(d), y - moveYWhenFacing(d))<- robotposition(t) = grid(x, y)& facing(t) = d.
+    }*/
+    
+        {
+        ! t[Time] x[xco] y[yco]:
+        locationInFront(t) = grid(x,y+1) <-
+        facing(t) = north & robotposition(t) = grid(x,y).
+
+        ! t[Time] x[xco] y[yco]:
+        locationInFront(t) = grid(x+1,y) <-
+        facing(t) = east & robotposition(t) = grid(x,y).
+
+        ! t[Time] x[xco] y[yco]:
+        locationInFront(t)= grid(x,y-1) <-
+        facing(t) = south & robotposition(t) = grid(x,y).
+
+        ! t[Time] x[xco] y[yco]:
+        locationInFront(t) = grid(x-1,y) <-
+        facing(t) = west & robotposition(t) = grid(x,y).
     }
+    
+    
     
     
 /*** FACING ***/
