@@ -200,8 +200,8 @@ theory solution: warehousevoc{
     {
       ! t [Time] d, d2 [dir]: C_NFacing(t,d) <- C_Facing(t,d2) & d~=d2.
      
-      ! t [Time] d [dir]: C_Facing(t,clockwiseTurn(d)) <- execute(t,rotateRight).
-      ! t [Time] d [dir]: C_Facing(t,counterClockwiseTurn(d)) <- execute(t,rotateLeft).
+      ! t [Time]: C_Facing(t,clockwiseTurn(facing(t))) <- execute(t,rotateRight) .
+      ! t [Time]: C_Facing(t,counterClockwiseTurn(facing(t))) <- execute(t,rotateLeft).
       ! d[dir]: I_Facing(d) <- facing(0) = d.
     }
     
