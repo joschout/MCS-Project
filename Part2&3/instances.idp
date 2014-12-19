@@ -2,12 +2,12 @@
 include "solution.idp"
 procedure check(){
 	structures = { 
-		//{NotOK1, 	"NotOK1",	0},
-		//{NotOK2, 	"NotOK2",	0},
-		//{NotOK3, 	"NotOK3",	0},
-		//{NotOK4, 	"NotOK4",	0},
-		//{NotOK5, 	"NotOK5",	0},		
-		//{NotOK6, 	"NotOK6",	0},
+		{NotOK1, 	"NotOK1",	0},
+		{NotOK2, 	"NotOK2",	0},
+		{NotOK3, 	"NotOK3",	0},
+		{NotOK4, 	"NotOK4",	0},
+		{NotOK5, 	"NotOK5",	0},		
+		{NotOK6, 	"NotOK6",	0},
         {TestGround, "Test",	1},
 		{Sat,		"Sat",		1},
 	}
