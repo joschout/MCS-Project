@@ -85,13 +85,15 @@ theory solution: warehousevoc{
     // at each moment, if a pallet is being carried, then there is no pallet above or below that pallet
     ! t [Time] p1 [pallet]: carried(t,p1) => ~? p2 [pallet] : on(t, p2, p1)|on(t, p1,p2).
     
-    //  at each moment, there is can be at most one pallet on top of a pallet
-    ! t [Time] p1 [pallet]: ?=<1 p2 [pallet]: on(t, p1, p2).
-    
-    //  at each moment, there can be at most one pallet below a pallet
+    //  at each moment, there  can be at most one pallet on top of a pallet
+   // ! t [Time] p1 [pallet]: ?=<1 p2 [pallet]: on(t, p1, p2).
     ! t [Time] p1 [pallet]: ?=<1 p2 [pallet]: on(t, p2, p1).
     
-    // at each moment, for all pallets, there cannot be a pallet which is at the same time below and above that pallet
+    //  at each moment, there can be at most one pallet below a pallet
+    //! t [Time] p1 [pallet]: ?=<1 p2 [pallet]: on(t, p2, p1).
+    ! t [Time] p1 [pallet]: ?=<1 p2 [pallet]: on(t, p1, p2).
+    
+    // at each moment, for all pallets, there cannot be a pallet which is at the same time above and below that pallet
     ! t [Time] p1 , p2 [pallet]: ~(on(t,p1,p2)&on(t,p2,p1)).
     
     // at each moment, a pallet cannot be on top of itself
@@ -116,7 +118,7 @@ theory solution: warehousevoc{
     ! t [Time] l1 [location]: inaccessible(l1) => robotposition(t) ~= l1.
     
     // at each moment, there cannot be a pallet on the robot's position if it isn't carried
-	! t [Time] l1 [location] : (robotposition(t) = l1)=> ~(? p1 [pallet]: 	             position(t,p1) = l1 & ~carried(t,p1)).    
+	! t [Time] l1 [location] : (robotposition(t) = l1)=> ~(? p1 [pallet]: position(t,p1) = l1 & ~carried(t,p1)).    
     
     
 /*** height ***/
@@ -130,10 +132,10 @@ theory solution: warehousevoc{
      
      /* for all pallets p1: if there isn't a pallet below p1 and if p1 isn't being carried, then the height of p1 is 1. This is a base case which defines the height for pallets lying on the ground.       
         */
-     ! t [Time] p1 [pallet]: heightOf(t,p1)= 1<- (~? p2 [pallet]: on(t,p2, p1)&~carried(t,p1)).  
+     ! t [Time] p1 [pallet]: heightOf(t,p1)= 1<- (~? p2 [pallet]: on(t,p1, p2)&~carried(t,p1)).  
         
      // if pallet 2 is on top of pallet 1, then pallet 2 has a height which is 1 higher
-     ! t [Time] p1, p2 [pallet]: heightOf(t,p1) = heightOf(t,p2)+1 <- on(t,p2,p1). 
+     ! t [Time] p1, p2 [pallet]: heightOf(t,p1) = heightOf(t,p2)+1 <- on(t,p1,p2). 
   
     }
     
@@ -228,7 +230,7 @@ theory solution: warehousevoc{
     
     //Preconditions
     
-    ! t [Time] p [pallet]: execute(t, pickUp(p)) => locationInFront(t,position(t, p)) & ~?p2 [pallet]: on(t, p, p2).
+    ! t [Time] p [pallet]: execute(t, pickUp(p)) => locationInFront(t,position(t, p)) & ~?p2 [pallet]: on(t, p2, p).
     ! t [Time] p [pallet]: execute(t, putDown(p)) => carried(t, p). //Location misschien bijvoegen
     
     //Inertia
@@ -255,8 +257,8 @@ theory solution: warehousevoc{
     //Causes
     
     {
-     	! t [Time] p1, p2 [pallet]: C_On(t, p1, p2) <- execute(t, putDown(p2)) & locationInFront(t,position(t, p1)).// & ~?p3 [pallet] : on(t, p1, p3).
-        ! t [Time], p1, p2 [pallet]: C_NOn(t, p1, p2) <- execute(t, pickUp(p2)).
+     	! t [Time] p1, p2 [pallet]: C_On(t, p2, p1) <- execute(t, putDown(p2)) & locationInFront(t,position(t, p1)).// & ~?p3 [pallet] : on(t, p1, p3).
+        ! t [Time], p1, p2 [pallet]: C_NOn(t, p2, p1) <- execute(t, pickUp(p2)).
         ! p1,p2 [pallet]: I_On(p1,p2) <- on(0, p1, p2).
     }
 /*** POSITION ***/
