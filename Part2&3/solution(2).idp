@@ -58,10 +58,12 @@ LTCvocabulary warehousevoc{
     C_NPosition(Time, pallet)
     I_Position(pallet)
     
-    
-    partial moveXWhenFacing(dir): dif
     type dif isa int
+    partial moveXWhenFacing(dir): dif
     partial moveYWhenFacing(dir): dif
+    
+    locationInFront(Time):location
+    locationBehind(Time):location
 }
 
 theory solution: warehousevoc{
@@ -129,7 +131,10 @@ theory solution: warehousevoc{
     
 /************************** The second part *************************/
 
-    
+    {
+    locationInFront(t) = grid(xco+moveXWhenFacing(d), yco + moveYWhenFacing(d))<- robotposition(t) = grid(xco, yco)& facing(t) = d.
+    locationBehind(t) = grid(xco-moveXWhenFacing(d), yco - moveYWhenFacing(d))<- robotposition(t) = grid(xco, yco)& facing(t) = d.
+    }
     
     
 /*** FACING ***/
@@ -162,8 +167,8 @@ theory solution: warehousevoc{
     {
         ! t [Time] l1, l2 [location]: C_NRobotposition(t,l1) <- C_Robotposition(t,l2) & l1 ~=l2.
         /******************************************************************************************************Not sure if this works*********************************************************************************************************************************/
-        ! t [Time] : C_Robotposition(t, grid(xco + moveXWhenFacing(d), yco + moveYWhenFacing(d))) <- execute(t,moveFront) &facing(t) = d & robotposition(t) = (xco,yco).
-        ! t [Time] : C_Robotposition(t, grid(xco - moveXWhenFacing(d), yco - moveYWhenFacing(d))) <- execute(t,moveBack) & facing(t) = d & robotposition(t) = (xco,yco).
+        ! t [Time] : C_Robotposition(t, locationInFront(t))) <- execute(t,moveFront).
+        ! t [Time] : C_Robotposition(t, locationBehind(t)) <- execute(t,moveBack).
         ! l [location] : I_Robotposition(l) <- robotposition(0) = l.
     }
     
@@ -171,41 +176,36 @@ theory solution: warehousevoc{
     
     //Preconditions
     
-    ! t [Time] p [pallet]: execute(t, pickUp(t,p))& facing(t)=d & robotposition(xco, yco) => position(t,p)= grid()
+    ! t [Time] p [pallet]: execute(t, pickUp(p)) => position(t, p) = locationInFront(t) & ~?p2 [pallet]: on(t, p, p2).
+    ! t [Time] p [pallet]: execute(t, putDown(p)) => carried(t, p). //Location misschien bijvoegen
     
     //Inertia
     {
         ! p [pallet]: carried(0,p) <- I_Carried(p).
-        ! t [Time]: p [pallet]: carried(Next(t), p) <- C_Carried(t, p).
-        ! t [time]: p [pallet]: carried(Next(t), p) <- carried(t,p) & ~C_NCarried(t,p).
+        ! t [Time] p [pallet]: carried(Next(t), p) <- C_Carried(t, p).
+        ! t [Time] p [pallet]: carried(Next(t), p) <- carried(t,p) & ~C_NCarried(t,p).
     }
     //Causes
     {
-        ! t [Time]: C_Carried(t,p) <- execute(t, pickUp(p))
-        ! p [pallet]: I_Carried(p) <- carried(0,p).
-        
+        ! t [Time]: C_Carried(t,p) <- execute(t, pickUp(p)).
+        ! t [Time]: C_NCarried(t,p) <- execute(t, putDown(p)).
+        ! p [pallet]: I_Carried(p) <- carried(0,p).        
     }
     
     
 /*** ON ***/
     //Inertia
     {
-        
+        ! p1, p2 [pallet]: on(0, p1, p2) <- I_On(p1,p2).
+     	! t [Time] p1, p2 [pallet]: on(Next(t), p1, p2) <- C_On(t,p1,p2).
+     	! t [Time] p1, p2 [pallet]: on(Next(t), p1,p2) <- on(t,p1,p2) & ~C_NOn(t,p1,p2).
     }
     
-    
-    
-    
-    /**
-    carried(Time,pallet)
-    C_Carried(Time, pallet)
-    C_NCarried(Time,pallet)
-    I_Carried(pallet)
-    
-    C_On(Time, pallet, pallet)
-    C_NOn(Time, pallet, pallet)
-    I_On(pallet, pallet)
-    
+    {
+     	! t [Time] p1, p2 [pallet]: C_On(t, p1, p2) <- execute(t, putDown(p2)) & locationInFront(t) = position(t, p1)// & ~?p3 [pallet] : on(t, p1, p3).
+        ! t [Time], p1, p2 [pallet]: C_Non(t, p1, p2) <- execute(t, pickUp(p2)).
+    }
+/**
     C_Position(Time, pallet)
     C_NPosition(Time, pallet)
     I_Position(pallet)
