@@ -83,37 +83,7 @@ MODULE robot(initX, initY, pallet1, pallet2) --initX and initY are the initial x
 		init(x) := initX;
 		init(y) := initY;
 		init(carriedPallet) := none;
---		init(action) := no_action;
-	
---	next(action) :=
---			case
---				isCarryingPallet :
---					case
---						allowedToMoveForward :
---							case
---								allowedToMoveBackward: {moveFront, moveBack, drop_pallet, rotate_clock} ;
---								TRUE: { moveFront, drop_pallet,rotate_clock} ;
---							esac;
---						!allowedToMoveForward:
---							case
---								allowedToMoveBackward: {moveBack, drop_pallet, rotate_clock} ;
---								TRUE: { drop_pallet, rotate_clock};
---							esac;
---					esac;
---				!isCarryingPallet :
---					case 
---						allowedToMoveForward:
---							case 
---								allowedToMoveBackward:	 {moveFront, moveBack, rotate_clock} ;
---								TRUE: {moveFront, rotate_clock} ;
---							esac;
---						!allowedToMoveForward: 
---							case 
---								allowedToMoveBackward: {pick_pallet, moveBack, rotate_clock};
---								TRUE: {pick_pallet, rotate_clock};
---							esac;
---					esac;
---			esac; 
+ 
 		
 		next(x) := 
 			case 
