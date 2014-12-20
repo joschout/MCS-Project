@@ -8,8 +8,9 @@ MODULE main
 		
 		--Initially, the pallets are on different locations
 		pallet1		: pallet(1,1, robot, TRUE, FALSE);
+		--pallet1		: pallet(1,2, robot, TRUE, FALSE);
 		pallet2		: pallet(5,3, robot, TRUE, FALSE);
-	
+		--pallet2		: pallet(0,3, robot, TRUE, FALSE);
 	INVAR
 		(pallet1.x = pallet2.x & pallet1.y = pallet2.y)	-> !(pallet1.onTopOfStack = pallet2.onTopOfStack)
 	INVAR
@@ -21,22 +22,42 @@ MODULE main
 	TRANS 
 	    (!(robot.action=pick_pallet) & pallet1.x = pallet2.x & pallet1.y = pallet2.y) -> (next(pallet1.onTopOfStack)=pallet1.onTopOfStack);
 
-
-
---	TRANS 
---	    !(next(robot.allowedToMoveForward)) -> !(next(robot.action=moveFront));
---	TRANS 
---	    !(next(robot.allowedToMoveBackward)) -> !(next(robot.action=moveBack));
-	--TRANS 
-	--    (next(robot.allowedToMoveForward)) -> !(next(robot.action=pick_pallet));
-	--TRANS 
-	  --  (next(robot.carriedPallet = none)) -> !(next(robot.action=drop_pallet));
-	--TRANS 
-	--    !(next(robot.carriedPallet = none)) -> !(next(robot.action=pick_pallet));
+	--PUT YOUR CTL/LTL SPECIFICAITONS HERE!	
+	
+	-- Specification 1: it is possible that in a certain point in time, pallet 2 is on top of pallet 1,
+	--					and at a later point in time, the stack is reversed (pallet 1 on top of pallet 2)
+	CTLSPEC
+		EF (pallet1.x = pallet2.x & pallet1.y = pallet2.y & pallet1.onTopOfStack & EF (pallet1.x = pallet2.x & pallet1.y = pallet2.y & pallet2.onTopOfStack))
 		
-
-	--PUT YOUR CTL/LTL SPECIFICAITONS HERE!		
-
+	-- Specification 2: it is not possible that pallet 1 is on top of pallet 2 and at the same time, pallet 2 is on top of pallet 1.
+	LTLSPEC
+		!F(pallet1.x = pallet2.x & pallet1.y = pallet2.y & pallet1.onTopOfStack & pallet2.onTopOfStack)
+		
+	CTLSPEC
+		AG(!(pallet1.x = pallet2.x & pallet1.y = pallet2.y & pallet1.onTopOfStack & pallet2.onTopOfStack))
+		
+	-- Specification 3: whatever happens, the robot can always pick up pallet 1 (at some time late)
+	CTLSPEC
+		AG( EF(robot.carriedPallet = p1) )
+		
+	-- Specification 4: if at some point in time, pallet 1 is being carried
+	--					and at some later time, it is no longer being carried,
+	--						then the following holds:
+	--						starting from t, pallet 1 remains being carried until the robot performs the action drop_pallet
+	LTLSPEC		
+	 	G(pallet1.beingCarried & F(!pallet1.beingCarried) -> (pallet1.beingCarried U robot.action = drop_pallet))
+	 	-- ?????????? pallet 1 doesn't stopbeing carried????
+	 	
+	-- Specification 5: whenever the robot an pallet 1 are at the same position, pallet 1 is carried
+	LTLSPEC
+		G(robot.x = pallet1.x & robot.y = pallet1.y -> (robot.carriedPallet = p1 & pallet1.beingCarried))	
+		
+	-- Specification 6: if the robot carries pallet 1 infinitely many times and he carries pallet 2 infinitely many times,
+	--					then he must also rotate clockwise infinitely many times
+	LTLSPEC
+        G (F (pallet1.beingCarried)) & G (F (pallet2.beingCarried)) -> G (F (robot.action = rotate_clock))
+	 	
+	 	
 MODULE robot(initX, initY, pallet1, pallet2) --initX and initY are the initial x and y coordinates
 	VAR
 		x : 0..5;
