@@ -55,10 +55,6 @@ LTCvocabulary warehousevoc{
     C_NPosition(Time, pallet, location)
     I_Position(pallet, location)
     
-    type dif isa int
-  //  partial moveXWhenFacing(dir): dif
-   // partial moveYWhenFacing(dir): dif
-    
     locationInFront(Time, location)
     locationBehind(Time, location)
 }
@@ -148,11 +144,7 @@ theory solution: warehousevoc{
 
     
 /* Inductive definition of locationInFront and locationBehind */
- /*   {
-        ! x [xco] y [yco] t [Time] d [dir]:
-    locationInFront(t) = grid(x+moveXWhenFacing(d), y + moveYWhenFacing(d))<- robotposition(t) = grid(x, y)& facing(t) = d.
-    ! x [xco] y [yco] t [Time] d [dir]: locationBehind(t) = grid(x-moveXWhenFacing(d), y - moveYWhenFacing(d))<- robotposition(t) = grid(x, y)& facing(t) = d.
-    }*/
+
     
         {
         ! t[Time] x[xco] y[yco]:
@@ -195,7 +187,7 @@ theory solution: warehousevoc{
 /*** FACING ***/
     //Inertia
     {
-        // for all directions d: if d is the initial direction, then the robot facesd at time o
+        // for all directions d: if d is the initial direction, then the robot faces d at time o
        ! d [dir]: facing(0)=d <-I_Facing(d).
         // if there is a cause for the robot to change its direction to d at time t, the robot will be facing d at time Next(t)
        ! d [dir] t [Time]: facing(Next(t))= d <- C_Facing(t,d).
@@ -205,7 +197,7 @@ theory solution: warehousevoc{
     {
       ! t [Time] d, d2 [dir]: C_NFacing(t,d) <- C_Facing(t,d2) & d~=d2.
      
-        
+      //Cases for each direction the robot is facing and which direction it should be facing next based on the way the robot is rotating. 
       ! t [Time]: C_Facing(t, north) <- ((facing(t) = west) & execute(t, rotateRight) ) | ((facing(t) = east) & execute(t, rotateLeft) ).
       ! t [Time]: C_Facing(t, east) <- ((facing(t) = north) & execute(t, rotateRight) ) | ((facing(t) = south) & execute(t, rotateLeft) ).
       ! t [Time]: C_Facing(t, south) <- ((facing(t) = east)& execute(t, rotateRight) ) | ((facing(t) = west) & execute(t, rotateLeft) ).    
@@ -218,35 +210,47 @@ theory solution: warehousevoc{
 /*** MOVING ***/
     //Inertia
     {
+       //For all locations l: if l is the initial location, the robot position is there.
        ! l [location]: robotposition(0)=l <- I_Robotposition(l).
+       //If there is a cause for the robot to change its position to l, the robotposition will be l at the next time step.
        ! t [Time] l [location]: robotposition(Next(t))=l <- C_Robotposition(t,l).
+       //If the robot does not have a cause to change position, it should keep its current position.
        ! t [Time] l [location]: robotposition(Next(t))=l <- (robotposition(t)=l) & ~C_NRobotposition(t,l).        
     }
     //Causes
-    {
+    {	
+        //If a robot changes position to l2, it causes the robot to not be at l1 where l1 =/= l2
         ! t [Time] l1, l2 [location]: C_NRobotposition(t,l1) <- (robotposition(t)= l1)& C_Robotposition(t,l2) & (l1 ~=l2).
-        /******************************************************************************************************Not sure if this works*********************************************************************************************************************************/
+        //if a robot moves forward, it causes its position to be the locationInFront at that time.
         ! t [Time] l [location] : C_Robotposition(t, l) <- execute(t,moveFront)& locationInFront(t,l).
+        //if a robot moves backward, it causes its position to be the locationInack at that time.
         ! t [Time] l [location]: C_Robotposition(t, l) <- execute(t,moveBack) & locationBehind(t,l).
+        //By combining this and the Inertia part, all initial positions are checked.
         ! l [location] : I_Robotposition(l) <- robotposition(0) = l.
     }
     
 /*** CARRYING ***/
     
     //Preconditions
-    
+    //If the robot picks up a pallet, the pallet needs to be in front of the robot and there cannot be a pallet on top of it.
     ! t [Time] p [pallet]: execute(t, pickUp(p)) => locationInFront(t,position(t, p)) & ~?p2 [pallet]: on(t, p2, p).
-    ! t [Time] p [pallet]: execute(t, putDown(p)) => carried(t, p). //Location misschien bijvoegen
+    //To put down a pallet, the robot must be carrying that pallet
+    ! t [Time] p [pallet]: execute(t, putDown(p)) => carried(t, p).
     
     //Inertia
-    {
+    {	
+        //Initial
         ! p [pallet]: carried(0,p) <- I_Carried(p).
+        //if there is a cause to carry a pallet, it will be carried a the next time step.
         ! t [Time] p [pallet]: carried(Next(t), p) <- C_Carried(t, p).
+        //If there is not a cause to not carry a pallet, the pallet will keep on being carried.
         ! t [Time] p [pallet]: carried(Next(t), p) <- carried(t,p) & ~C_NCarried(t,p).
     }
     //Causes
-    {
+    {	
+        //If the robot executes a pickUp of a pallet, it is a cause for a pallet to be carried.
         ! t [Time] p [pallet]: C_Carried(t,p) <- execute(t, pickUp(p)).
+        //if the robot executes a putDown of a pallet, it is a cause for that pallet to not be carried anymore.
         ! t [Time] p [pallet]: C_NCarried(t,p) <- execute(t, putDown(p)).
         ! p [pallet]: I_Carried(p) <- carried(0,p).        
     }
@@ -254,33 +258,47 @@ theory solution: warehousevoc{
     
 /*** ON ***/
     //Inertia
-    {
+    {	
+        //Initial
         ! p1, p2 [pallet]: on(0, p1, p2) <- I_On(p1,p2).
+        //if there is a cause for a pallet to be on another pallet, it will be in the next time step.
      	! t [Time] p1, p2 [pallet]: on(Next(t), p1, p2) <- C_On(t,p1,p2).
+        //If there is not a cause to not be on another pallet anymore, all pallets will stay where they are.
      	! t [Time] p1, p2 [pallet]: on(Next(t), p1,p2) <- on(t,p1,p2) & ~C_NOn(t,p1,p2).
     }
     //Causes
     
     {
+        //If the robot executes a putDown of p2, p1 is in front of the robot and there is not a p3 on top of p1, there is a cause for p2 to be on p1
      	! t [Time] p1, p2 [pallet]: C_On(t, p2, p1) <- execute(t, putDown(p2)) & locationInFront(t,position(t, p1)) & ~?p3 [pallet] : on(t, p3, p1).
+        //If the robot executes a pickUp of p2, it is a cause for p2 to not be on any p1.
         ! t [Time], p1, p2 [pallet]: C_NOn(t, p2, p1) <- execute(t, pickUp(p2)).
         ! p1,p2 [pallet]: I_On(p1,p2) <- on(0, p1, p2).
     }
 /*** POSITION ***/
     //Inertia
-    {
+    {	
+        //initial
         ! p [pallet] l [location]:position(0, p) = l <- I_Position(p, l).
+        //If there is a cause for a pallet to be on a location, it will be in the next timestep.
         ! t [Time] p [pallet] l [location]: position(Next(t), p) = l <- C_Position(t, p, l).
+        //If there is not a cause for a pallet to not be on a location, it will stay where it is.
         ! t [Time] p [pallet] l [location]: position(Next(t), p) = l <- position(t, p) = l & ~C_NPosition(t, p, l).
     }
     //Causes
-    {
+    {	
+        //If a robot executes pickUp of p, it is a cause for p to change location to robotposition at that time.
         ! t [Time] p [pallet]: C_Position(t, p, robotposition(t)) <- execute(t, pickUp(p)).
+        //If a robot executes putDown of p, the location of p should change to the position in front of the robot.
         ! t [Time] p [pallet] l [location]: C_Position(t, p, l) <- execute(t, putDown(p)) & locationInFront(t, l).
+        //if there is a cause for the robot position to change and p is carried at that time, the position of p should also change.
         ! t [Time] p [pallet] l [location]: C_Position(t, p, l) <- C_Robotposition(t, l) & carried(t, p).
         
+        //If the robot executes a pickUp of p, it changes the location of p to be on another position.
         ! t [Time] p [pallet]: C_NPosition(t, p, position(t,p)) <- execute(t, pickUp(p)).
+        //If the robot puts down a pallet, it causes the pallet to not be on its last location anymore
         ! t [Time] p [pallet]: C_NPosition(t, p, position(t,p)) <- execute(t, putDown(p)).
+        //If there is a cause for the robot to not be on the same position anymore and p is being carried, that is a cause for the position of p to change too.
         ! t [Time] p [pallet] l [location]: C_NPosition(t, p, l) <- C_NRobotposition(t, l) & carried(t, p).
         
         ! p [pallet] l [location]: I_Position(p, l) <- position(0, p) = l.
