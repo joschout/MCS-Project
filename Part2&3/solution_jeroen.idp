@@ -1,0 +1,526 @@
+include<LTC>
+
+LTCvocabulary warehousevoc{
+	type Time isa nat
+	Start: Time
+	partial Next(Time):Time
+
+	type pallet
+	type action constructed from {rotateRight, rotateLeft, moveFront, moveBack, pickUp(pallet), putDown(pallet)}	
+	execute(Time,action)
+
+	on(Time,pallet,pallet)
+	carried(Time,pallet)
+
+	type xco isa nat
+	type yco isa nat	
+	type location constructed from {grid(xco,yco)}
+	inaccessible(location)
+	robotposition(Time): location
+	position(Time,pallet): location
+	
+	type dir constructed from {north, east, south, west}
+	facing(Time): dir
+	
+	type height isa nat
+	ceiling: height
+    
+    /* restsOn(t,p1,p2) means that pallet p1 is standing on pallet
+    p2 at time t, either indirectly (with some pallets between them 
+    in the height dimension) or directly */
+    restsOn(Time,pallet,pallet)
+    
+    /* locationInFront(t,l) means that the position in front of the 
+    robot at time t is equal to location l */
+    locationInFront(Time,location)
+    
+    /* locationBehind(t,l) means that the position behind the robot 
+    at time t is equal to location l */ 								locationBehind(Time,location)
+    
+   	/* Intermediate predicates to support all causal rules
+    concerning the intertial on(Time,pallet,pallet) predicate */
+    I_On(pallet,pallet)
+    C_On(Time,pallet,pallet)
+    C_NOn(Time,pallet,pallet)
+    
+    /* Intermediate predicates to support all causal rules
+    concerning the intertial carried(Time,pallet) predicate */
+    I_Carried(pallet)
+    C_Carried(Time,pallet)
+    C_NCarried(Time,pallet)
+    
+   	/* Intermediate predicates to support all causal rules
+    concerning the intertial robotposition(Time):location
+    function */
+    I_Robotposition(location)
+    C_Robotposition(Time,location)
+    C_NRobotposition(Time,location)
+    
+   	/* Intermediate predicates to support all causal rules
+    concerning the intertial position(Time,pallet):location
+    function */    
+    I_Position(pallet,location)
+    C_Position(Time,pallet,location)
+    C_NPosition(Time,pallet,location)
+    
+   	/* Intermediate predicates to support all causal rules
+    concerning the intertial facing(Time):dir function */    
+    I_Facing(dir)
+    C_Facing(Time,dir)
+    C_NFacing(Time,dir)
+    
+}
+
+include "Project2/instances.idp"
+
+theory solution: warehousevoc{
+
+//Time theory
+{
+	Start = MIN[:Time].
+	!t: Next(t) = t+1 <- Time(t+1).
+}
+   
+/*******************************************************/ 
+/****************	STATIC CONSTRAINTS	****************/ 
+/*******************************************************/ 
+    
+/* Recursive definition of the restsOn(Time,pallet,pallet) predicate */
+    
+	{
+		! p1[pallet] p2[pallet] t[Time]:
+    	restsOn(t,p1,p2) <- on(t,p1,p2).
+        
+		! p1[pallet] p3[pallet] t[Time]:
+    	restsOn(t,p1,p3) <-
+        (?p2[pallet]:restsOn(t,p1,p2)&restsOn(t,p2,p3)).
+	}
+       
+/* Laws of physics */
+    
+	/* A pallet cannot rest on itself at any point in time */
+	! p1[pallet] p2[pallet] t[Time]: restsOn(t,p1,p2)=>p1~=p2.
+
+	/* When a pallet is resting on another pallet at a given point
+    in time, it cannot be so that the second pallet is also resting
+    on the first one at that point in time */
+    ! p1[pallet] p2[pallet] t[Time]:
+    restsOn(t,p1,p2)=>~restsOn(t,p2,p1).
+    
+	/* Two pallets have the same position at a specific point in
+    time if and only if they are resting on each other at that point
+    in time */
+    ! p1[pallet] p2[pallet] t[Time]:
+    ((position(t,p1)=position(t,p2))&(p1~=p2))
+    <=>(restsOn(t,p1,p2)|restsOn(t,p2,p1)).
+    
+/* Uniformity of all pallet surfaces */
+    
+	/* When a pallet is standing directly on a second one at a given
+    point in time, no other pallet can stand directly on this second
+    one at that point in time*/
+    ! p1[pallet] p2[pallet] p3[pallet] t[Time]:
+    (on(t,p1,p2)&p3~=p1)=>~on(t,p3,p2).
+    
+	/* When a pallet is standing directly on a second one at a given
+    point in time, the first pallet cannot stand directly on another
+    one at that point in time */
+    ! p1[pallet] p2[pallet] p3[pallet] t[Time]:
+    (on(t,p1,p2)&p3~=p2)=>~on(t,p1,p3).
+    
+/* Height constraint of the warehouse */
+        
+	/* The number of pallets on one stack is not greater than the
+    ceiling at any point in time */
+    ! p1[pallet] t[Time]:#{p2[pallet]: restsOn(t,p1,p2)}<ceiling.
+
+/* Inaccessibility of certain grid locations */
+    
+	/* A pallet cannot be located at an inaccessible position at any
+    point in time */
+    ! p1[pallet] t[Time]: ~inaccessible(position(t,p1)).
+    
+	/* The robot cannot be located at an inaccessible position at
+    any point in time */
+    ! t[Time]:~inaccessible(robotposition(t)).
+    
+/* Carrying constraints (Assumption: height of robot = 0) */
+    
+	/* A pallet is carried at a specific point in time if and only
+    if its position is equal to the robot's position at that point
+    in time */
+    ! p1[pallet] t[Time]:
+    carried(t,p1)<=>(position(t,p1)=robotposition(t)).
+    
+	/* Only one pallet at most can be carried by the robot at any
+    point in time */
+    ! p1[pallet] p2[pallet] t[Time]:
+    (carried(t,p1)&(p1~=p2))=>~carried(t,p2).
+    
+/*******************************************************/ 
+/****************	DYNAMIC CONSTRAINTS	****************/ 
+/*******************************************************/
+    
+/* Definition of locationInFront(Time,location) */
+    
+    {
+        ! t[Time] x[xco] y[yco]:
+        locationInFront(t,grid(x,y+1)) <-
+        facing(t) = north & robotposition(t) = grid(x,y).
+
+        ! t[Time] x[xco] y[yco]:
+        locationInFront(t,grid(x+1,y)) <-
+        facing(t) = east & robotposition(t) = grid(x,y).
+
+        ! t[Time] x[xco] y[yco]:
+        locationInFront(t,grid(x,y-1)) <-
+        facing(t) = south & robotposition(t) = grid(x,y).
+
+        ! t[Time] x[xco] y[yco]:
+        locationInFront(t,grid(x-1,y)) <-
+        facing(t) = west & robotposition(t) = grid(x,y).
+    }
+    
+/* Definition of locationBehind(Time,location) */
+    
+    {
+        ! t[Time] x[xco] y[yco]:
+        locationBehind(t,grid(x,y-1)) <-
+        facing(t) = north & robotposition(t) = grid(x,y).
+
+        ! t[Time] x[xco] y[yco]:
+        locationBehind(t,grid(x-1,y)) <-
+        facing(t) = east & robotposition(t) = grid(x,y).
+
+        ! t[Time] x[xco] y[yco]:
+        locationBehind(t,grid(x,y+1)) <-
+        facing(t) = south & robotposition(t) = grid(x,y).
+
+        ! t[Time] x[xco] y[yco]:
+        locationBehind(t,grid(x+1,y)) <-
+        facing(t) = west & robotposition(t) = grid(x,y).
+    }
+    
+/* Preconditions */
+
+    /* The robot has to carry the pallet that he puts down on a
+    valid location */
+    ! t[Time] p[pallet]:
+    execute(t,putDown(p)) =>
+    carried(t,p) & (? l[location]: locationInFront(t,l)).
+    
+    /* The robot can only pick up a pallet when that pallet is in
+    front of him and there is no other pallet on it */
+    !t[Time] p[pallet]:
+    execute(t,pickUp(p)) =>
+    locationInFront(t,position(t,p)) & (?0 p1[pallet]: on(t,p1,p)).
+    
+/* Causal rules for the inertial predicates and functions */
+    
+    {
+		! t[Time] p1[pallet] p2[pallet]:
+        on(Next(t),p1,p2) <- C_On(t,p1,p2).
+		! t[Time] p1[pallet] p2[pallet]:
+        on(Next(t),p1,p2) <- on(t,p1,p2) & ~C_NOn(t,p1,p2).
+       	! p1[pallet] p2[pallet]:
+        on(Start,p1,p2) <- I_On(p1,p2).
+        
+		! t[Time] p[pallet]: 
+        carried(Next(t),p) <- C_Carried(t,p).
+		! t[Time] p[pallet]: 
+        carried(Next(t),p) <- carried(t,p) & ~C_NCarried(t,p).
+        ! p[pallet]: 
+        carried(Start,p) <- I_Carried(p).
+        
+		! t[Time] l[location]: 
+        robotposition(Next(t)) = l <- C_Robotposition(t,l).
+		! t[Time] l[location]: 
+        robotposition(Next(t)) = l <-
+        robotposition(t) = l & ~C_NRobotposition(t,l).
+        ! l[location]: 
+        robotposition(Start) = l <- I_Robotposition(l).
+        
+		! t[Time] p[pallet] l[location]:
+        position(Next(t),p) = l <- C_Position(t,p,l).
+		! t[Time] p[pallet] l[location]:
+        position(Next(t),p) = l <-
+        position(t,p) = l & ~C_NPosition(t,p,l).
+		! p[pallet] l[location]:
+        position(Start,p) = l <- I_Position(p,l).
+        
+		! t[Time] d[dir]:
+        facing(Next(t)) = d <- C_Facing(t,d).
+		! t[Time] d[dir]:
+        facing(Next(t)) = d <- 
+        facing(t) = d & ~C_NFacing(t,d).
+		! d[dir]:
+        facing(Start) = d <- I_Facing(d).
+    }
+
+/* Causal rules for the intermediate predicates */
+    
+    {
+        /* Timestep zero defines the initial state of the
+        on(Time,pallet,pallet) predicate */
+		! p1[pallet] p2[pallet]:
+        I_On(p1,p2) <- on(0,p1,p2).
+        
+        /* Whenever the robot puts down a pallet, another pallet is
+        located in front of the robot and there is no other pallet
+        on the second one, this causes the first pallet to be on the
+        second one in the next timestep */
+        ! t[Time] p1[pallet] p2[pallet]:
+        C_On(t,p1,p2) <-
+        locationInFront(t,position(t,p2)) &
+        execute(t,putDown(p1)) & (?0 p3[pallet]: on(t,p3,p2)).
+        
+       	/* Whenever the robot picks up a pallet, this causes that
+        pallet not to be on any other pallet in the next timestep */
+        ! t[Time] p1[pallet] p2[pallet]:
+        C_NOn(t,p1,p2) <- execute(t,pickUp(p1)).
+        
+        /* Timestep zero defines the initial state of the
+        carried(Time,pallet) predicate */
+        ! p[pallet]:
+        I_Carried(p) <- carried(0,p).
+        
+        /* Whenever the robot picks up a pallet, this causes that
+        pallet to be carried in the next timestep */
+        ! t[Time] p[pallet]:
+        C_Carried(t,p) <- execute(t,pickUp(p)).
+        
+        /* Whenever the robot puts down a pallet, this causes that
+        pallet not to be carried in the next timestep */
+        ! t[Time] p[pallet]:
+        C_NCarried(t,p) <- execute(t,putDown(p)).
+        
+        /* Timestep zero defines the initial state of the
+        robotposition(Time):location function */        
+        ! l[location]:
+        I_Robotposition(l) <- robotposition(0) = l.
+        
+        /* Whenever the robot moves forward and there is a grid
+        location in front of it, this causes the robotposition to be
+        equal to that location in the next timestep */
+        ! t[Time] l[location]:
+        C_Robotposition(t,l) <- 
+        execute(t,moveFront) & locationInFront(t,l).
+        
+        /* Whenever the robot moves backward and there is a grid
+        location behind it, this causes the robotposition to be
+        equal to that location in the next timestep */
+        ! t[Time] l[location]:
+        C_Robotposition(t,l) <- 
+        execute(t,moveBack) & locationBehind(t,l).
+        
+        /* Whenever the robotposition is equal to a location and
+        there is a cause for the robotposition to be equal to
+        another location in the next timestep, this causes the
+        robotposition not to be equal to the first location in that
+        next timestep */
+        ! t[Time] l1[location] l2[location]:
+        C_NRobotposition(t,l1) <- 
+        (robotposition(t) = l1) & C_Robotposition(t,l2) & (l1~=l2).
+        
+        /* Timestep zero defines the initial state of the
+        position(Time,pallet):location function */
+        ! p[pallet] l[location]:
+        I_Position(p,l) <- position(0,p) = l.
+        
+        /* Whenever there is a cause for the robotposition to be
+        equal to a location in the next timestep and a pallet is 
+        carried by the robot, this causes the position of that 
+        pallet to be equal to that location in that next timestep */
+        ! t[Time] p[pallet] l[location]:
+        C_Position(t,p,l) <- 
+        C_Robotposition(t,l) & carried(t,p).
+        
+        /* Whenever the robot puts down a pallet and there is a grid
+        location in front of the robot, this causes the position of
+        that pallet to be equal to that location in the next 
+        timestep */
+        ! t[Time] p[pallet] l[location]:
+        C_Position(t,p,l) <- 
+        execute(t,putDown(p)) & locationInFront(t,l).
+        
+        /* Whenever the robot picks up a pallet and the
+        robotposition is equal to a location, this causes the
+        position of that pallet to be equal to that location in the
+        next timestep */
+        ! t[Time] p[pallet] l[location]:
+        C_Position(t,p,l) <- 
+        execute(t,pickUp(p)) & (robotposition(t) = l).
+        
+        /* Whenever there is a cause for the robotposition not to be
+        equal to a location in the next timestep and the robot 
+        carries a pallet, this causes the position of that pallet to 
+        be equal to that location in that next timestep */
+        ! t[Time] p[pallet] l[location]:
+        C_NPosition(t,p,l) <- 
+        C_NRobotposition(t,l) & carried(t,p).
+
+        /* Whenever the robot puts down a pallet and the
+        robotposition is equal to a location, this causes the
+        location of that pallet not to be equal to that location in
+        the next timestep */
+        ! t[Time] p[pallet] l[location]:
+        C_NPosition(t,p,l) <- 
+        execute(t,putDown(p)) & (robotposition(t) = l).        
+        
+        /* Whenever the robot picks up a pallet and there is a grid 
+       	location in front of the robot, this causes the position of
+        that pallet not to be equal to that location in the next 
+        timestep */
+        ! t[Time] p[pallet] l[location]:
+        C_NPosition(t,p,l) <- 
+        execute(t,pickUp(p)) & locationInFront(t,l).
+        
+        /* Timestep zero defines the initial state of the
+        facing(Time):dir function */
+        ! d[dir]:
+        I_Facing(d) <- facing(0) = d.
+        
+        /* Whenever the robot rotates to the right and is facing 
+        west, or the robot rotates to the left and is facing east, 
+        this causes the robot to be facing north in the next 
+        timestep */
+        ! t[Time]:
+        C_Facing(t,north) <-
+        (execute(t,rotateRight) & facing(t) = west) |
+        (execute(t,rotateLeft) & facing(t) = east).
+        
+        /* Whenever the robot rotates to the right and is facing 
+        north, or the robot rotates to the left and is facing south, 
+        this causes the robot to be facing east in the next 
+        timestep */
+        ! t[Time]:
+        C_Facing(t,east) <-
+        (execute(t,rotateRight) & facing(t) = north) |
+        (execute(t,rotateLeft) & facing(t) = south).
+        
+        /* Whenever the robot rotates to the right and is facing 
+        east, or the robot rotates to the left and is facing west, 
+        this causes the robot to be facing south in the next 
+        timestep */
+        ! t[Time]:
+        C_Facing(t,south) <-
+        (execute(t,rotateRight) & facing(t) = east) |
+        (execute(t,rotateLeft) & facing(t) = west).
+      
+        /* Whenever the robot rotates to the right and is facing 
+        south, or the robot rotates to the left and is facing north, 
+        this causes the robot to be facing west in the next 
+        timestep */
+        ! t[Time]:
+        C_Facing(t,west) <-
+        (execute(t,rotateRight) & facing(t) = south) |
+        (execute(t,rotateLeft) & facing(t) = north).
+        
+        /* Whenever there is a cause for the robot to be facing a 
+        direction in the next timestep, this causes the robot not to 
+        be facing any other direction in that next timestep */
+        ! t[Time] d1[dir] d2[dir]:
+        C_NFacing(t,d2) <-
+        C_Facing(t,d1) & (d1~=d2).
+    }
+   
+/* The robot can perform at most one action per timestep */
+	! t[Time]: ?=<1 a[action]: execute(t,a).
+    
+}
+
+/* Negative theory for verifying whether it is possible to make a stack containing all pallets */
+theory verification1: warehousevoc{
+    ~(? t[Time] l[location]: ! p[pallet]: position(t,p) = l).
+}
+
+/* Verification procedure that, given the theory above and an  explicit structure, prints out whether the verification for that theory and structure is succesful */
+procedure verification1proc(struc){    
+    local sols = modelexpand(merge(solution,verification1),struc)
+    if (#sols == 0) then
+		print(">>>verification 1 succesful!")
+		return
+	end
+	print(">>>verification 1 failed!")
+}
+
+/* Theory for verifying whether any stack of at least two pallets remains a stack of at least one pallet for the next three 
+timesteps */
+theory verification2: warehousevoc{
+    ! t[Time] p1[pallet] p2[pallet] l[location]:
+    (on(t,p1,p2) & (?0 p3[pallet]: on(t,p2,p3)) &
+    position(t,p2) = l) =>
+    (position(Next(t),p2) = l & 
+    position(Next(Next(t)),p2) = l & 
+    position(Next(Next(Next(t))),p2) = l).
+}
+
+/* Verification procedure that, given the theory above and an  explicit structure, prints out whether the verification for that theory and structure is succesful */
+procedure verification2proc(struc){
+    stdoptions.nbmodels = 0
+	local sols1 = modelexpand(verification2,struc)
+    local sols2 = modelexpand(solution,struc)
+    if (#sols1==#sols2) then
+		print(">>>verification 2 succesful! -> "..#sols1)
+		return
+	end
+	print(">>>verification 2 failed!")
+}
+
+/* Theory for verifying whether the robot cannot drive through pallets */
+theory verification3: warehousevoc{
+    ! t[Time] p[pallet] l[location]:
+    ~(robotposition(t) = l & position(t,p) = l & ~carried(t,p)).
+}
+
+/* Verification procedure that, given the theory above and an  explicit structure, prints out whether the verification for that theory and structure is succesful */
+procedure verification3proc(struc){
+    stdoptions.nbmodels = 0
+	local sols1 = modelexpand(verification3,struc)
+    local sols2 = modelexpand(solution,struc)
+    if (#sols1==#sols2) then
+		print(">>>verification 3 succesful! -> "..#sols1)
+		return
+	end
+	print(">>>verification 3 failed!")
+}
+
+
+procedure allVerifications(){
+	strucToCheck = verStruc
+	verification1proc(strucToCheck)
+	//verification2proc(strucToCheck)
+	//verification3proc(strucToCheck)
+}
+
+
+structure verStruc:warehousevoc{
+	Time = {0..16}
+	Start = 0
+	Next = {0->1;1->2;2->3;3->4;4->5;5->6;6->7;7->8;8->9;9->10;10->11;11->12;12->13;13->14;14->15;15->16}
+	xco={1..3}
+	yco={1..3}
+	height = {0..3}
+	pallet={p1;p2}
+	inaccessible={grid(3,2);grid(2,2)}
+	ceiling = 3
+}
+
+procedure main(){
+    //Depending on what you wish to do, execute one of the following methods:
+	 
+    //This method (defined in the instances.idp) checks some given worlds for consistency
+ 	//check()
+    allVerifications()
+
+    //This method lets you walk through your solutions interactively
+	//simulate_interactive(solution,verStruc)
+	
+    //This method walks randomly trough the solutions, 5 steps deep
+	//simulate_random(solution,verStruc,5)
+	
+    //This method (defined above) simply searches models of your theory
+	//stdoptions.nbmodels=5 //Find 5 models	
+	//printmodels(modelexpand(solution,verStruc))
+	
+}

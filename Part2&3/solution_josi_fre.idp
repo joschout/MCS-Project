@@ -1,0 +1,405 @@
+﻿ 
+/** 
+* Skeleton for the second part of the project. 
+*
+* No names in this skeleton can be changed, you can add things to the vocabulary and you should definitely add stuff to the theory. 
+*/
+
+include<LTC>
+
+LTCvocabulary warehousevoc{
+	type Time isa nat
+	Start: Time
+	partial Next(Time):Time
+
+	type pallet
+	type action constructed from {rotateRight, rotateLeft, moveFront, moveBack, pickUp(pallet), putDown(pallet)}	
+	execute(Time,action) //ACTION
+
+	on(Time,pallet,pallet)
+    I_on(pallet,pallet)
+    C_on(Time,pallet,pallet)
+    Cn_on(Time,pallet,pallet)
+    
+	carried(Time,pallet)
+	I_carried(pallet)
+    C_carried(Time,pallet)
+    Cn_carried(Time,pallet)
+    
+	type xco isa nat
+	type yco isa nat	
+	type location constructed from {grid(xco,yco)}
+	inaccessible(location)
+	
+    robotposition(Time): location
+    I_robotposition: location
+    C_robotposition(Time, location)
+    
+    position(Time,pallet): location
+    I_position(pallet, location)
+    C_position(Time,pallet,location)
+    
+	type dir constructed from {north, east, south, west}
+	facing(Time): dir
+    I_facing: dir
+    C_facing(Time, dir)
+    
+	type height isa nat
+	ceiling: height
+    
+    // ADDED
+    heightOf(Time,pallet): height    // The height of the pallet.
+                                // When on the floor, a pallet has height 0.
+                                // When carried, a pallet has a height of 1.
+                                // When on another pallet, the height of a pallet
+                                // is one higher than the height of the pallet below.
+                                // The height of a pallet must be lower than the ceiling.
+    
+	above(Time,pallet,pallet)    //above(p1,p2) means pallet p1 is in the same stack as p2, but higher
+    
+    adjacentLocation(location,dir,location)
+    
+    partial topOfStack(Time,location):pallet
+}
+
+theory solution: warehousevoc{
+    
+	//=======================//
+    //----- World Logic -----//
+    //=======================//
+
+    //The robot nor pallets are in inaccessible locations
+    ~(?t [Time]: inaccessible(robotposition(t))).
+    ~(?p [pallet] t [Time]:inaccessible(position(t,p))).
+    ! t [Time] a [action] b [action] :execute(t,a) & execute(t,b) => a=b.
+    //!t [Time]: ?1 a [action]: execute(t,a).
+    
+    {
+    	! x [xco] y [yco]: adjacentLocation(grid(x,y),north,grid(x,y+1)) <- yco(y+1).
+    	! x [xco] y [yco]: adjacentLocation(grid(x,y),south,grid(x,y-1)) <- yco(y-1).
+    	! x [xco] y [yco]: adjacentLocation(grid(x,y),east,grid(x+1,y)) <- xco(x+1).
+    	! x [xco] y [yco]: adjacentLocation(grid(x,y),west,grid(x-1,y)) <- xco(x-1).
+    }
+	
+    //========================//
+    //----- Pallet Logic -----//
+    //========================//
+    
+    //A pallet is not above itself
+    ~(?p [pallet] t [Time]: above(t,p,p)).
+    
+    //Two pallets can not be on the same pallet (is this redudant?)
+    !p1 [pallet] p2 [pallet] p3 [pallet] t [Time]: on(t,p1,p3) & on(t,p2,p3) => p1=p2.
+    
+    //Transitive definition of above/2
+    {
+        !p1 [pallet] p2 [pallet] t [Time]: above(t,p1,p2) <- on(t,p1,p2).
+        !p1 [pallet] p2 [pallet] p3 [pallet] t [Time]: above(t,p1,p2) <- on(t,p1,p3) & above(t,p3,p2).
+    }
+    
+    //If there is a pallet on another location than the robot, there must be a pallet resting on the floor (height 0)
+    ! l [location] t [Time]: (l~=robotposition(t)) & (?p1 [pallet]: position(t,p1)=l) => (?p2 [pallet]: position(t,p2) = l & heightOf(t,p2)=0).
+    
+    //All non-carried pallets which are not on the floor, are resting on another pallet.
+    ! p1 [pallet] t [Time]: (~carried(t,p1)) & (heightOf(t,p1)>0) => ?p2 [pallet]: on(t,p1,p2).
+    
+    //Definition of the height of a pallet
+    !p [pallet] t [Time]: carried(t,p) => heightOf(t,p) = 0. //safety, see clarification of "carried height"
+    
+    !p1 [pallet] p2 [pallet] t [Time]: on(t,p1,p2) => (heightOf(t,p1) = (heightOf(t,p2)+1)).
+    
+    !p [pallet] t [Time]: ~(heightOf(t,p) >= ceiling).
+    
+    //There can be only one pallet on a certain position and height (is this redudant?)
+    !p1 [pallet] p2 [pallet] t [Time]: (position(t,p1) = position(t,p2) & heightOf(t,p1) = heightOf(t,p2)) => p1=p2.
+        
+    // If two pallets are not part of the same stack, they cannot be on one another
+    !p1 [pallet] p2 [pallet] t [Time]: ~(position(t,p1)=position(t,p2)) => ~(on(t,p1,p2)).
+    
+    {
+        ! p [pallet] l [location] t [Time]: topOfStack(t,l) = p <- position(t,p)=l & ~(? p2 [pallet]: above(t,p2,p)).
+    }
+    
+    //=======================//
+    //----- Robot Logic -----//
+    //=======================//
+
+    //only one pallet can be carried at any time
+    !p1 [pallet] p2 [pallet] t [Time]: carried(t,p1) & carried(t,p2) => p1=p2.
+    
+    //A carried pallet has the same position as the robot, and other pallets don't
+    !p [pallet] t [Time]: carried(t,p) <=> (position(t,p) = robotposition(t)).
+    
+    //======================================================//
+    //----- LTC Successor State Action Axiom & Inertia -----//
+    //======================================================//    
+    
+    // on/3
+   	{ 
+        ! p1 [pallet] p2 [pallet]: on(Start,p1,p2) <- I_on(p1,p2).
+		! p1 [pallet] p2 [pallet] t [Time] : on(Next(t),p1,p2) <- C_on(t,p1,p2).
+		! p1 [pallet] p2 [pallet] t [Time] : on(Next(t),p1,p2) <- on(t,p1,p2) & ~Cn_on(t,p1,p2).
+	}
+    
+    // carried/2
+    {
+        ! p [pallet]: carried(Start,p) <- I_carried(p).
+        ! p [pallet] t [Time]: carried(Next(t),p) <- C_carried(t,p).
+        ! p [pallet] t [Time]: carried(Next(t),p) <- carried(t,p) & ~Cn_carried(t,p).
+    }
+   	
+    // robotposition
+    {
+        robotposition(Start) = I_robotposition.
+        ! t [Time] l [location]: robotposition(Next(t)) = l <- C_robotposition(t,l).
+        ! t [Time] l [location]: robotposition(Next(t)) = l <- ~(? l2 [location]: C_robotposition(t,l2)) & robotposition(t)=l.
+    }
+    
+    // position
+    {
+        ! p [pallet] l [location]: position(Start,p) = l <- I_position(p,l).
+        ! p [pallet] t [Time] l [location]: position(Next(t),p)=l <- C_position(t,p,l).
+        ! p [pallet] t [Time] : position(Next(t),p)=position(t,p) <- ~(? l [location]: C_position(t,p,l)).
+    }
+    
+    //facing
+    {
+        facing(Start) = I_facing.
+        ! t [Time] d [dir]: facing(Next(t)) = d <- C_facing(t,d).
+        ! t [Time]: facing(Next(t)) = facing(t) <- ~(?d [dir]: C_facing(t,d)).
+    }
+    
+    //==========================//
+    //----- LTC Causations -----//
+    //==========================//  
+	
+    // C_on & Cn_on
+    
+	{
+        ! p1 [pallet] p2 [pallet] t [Time] l [location]: C_on(t,p1,p2)
+            <- execute(t,putDown(p1)) & adjacentLocation(robotposition(t),facing(t),l) & (topOfStack(t,l)=p2).
+        ! p1 [pallet] p2 [pallet] t [Time]: Cn_on(t,p1,p2)
+            <- execute(t,pickUp(p1)) & on(t,p1,p2).
+    }
+    // C_carried & Cn_carried
+    {
+        ! p1 [pallet] t [Time]: Cn_carried(t,p1)
+            <- execute(t,putDown(p1)).
+        ! p1 [pallet] t [Time]: C_carried(t,p1)
+            <- execute(t,pickUp(p1)).
+        
+    }
+    
+    // C_position & Cn_position
+    {
+        ! p [pallet] t [Time] l [location]: C_position(t,p,l)
+            <- execute(t,putDown(p)) & adjacentLocation(robotposition(t),facing(t),l).
+        ! p [pallet] t [Time]: C_position(t,p,robotposition(t))
+            <- execute(t,pickUp(p)).
+        ! p [pallet] t [Time] l [location]: C_position(t,p,l) <- carried(t,p) & C_robotposition(t,l).
+	}
+    // C_facing
+    {
+        ! t [Time]: C_facing(t, north) <- facing(t) = west & execute(t,rotateRight).
+        ! t [Time]: C_facing(t, east) <- facing(t) = north & execute(t,rotateRight).
+        ! t [Time]: C_facing(t, south) <- facing(t) = east & execute(t,rotateRight).
+        ! t [Time]: C_facing(t, west) <- facing(t) = south & execute(t,rotateRight).
+        
+        ! t [Time]: C_facing(t, north) <- facing(t) = east & execute(t,rotateLeft).
+        ! t [Time]: C_facing(t, east) <- facing(t) = south & execute(t,rotateLeft).
+        ! t [Time]: C_facing(t, south) <- facing(t) = west & execute(t,rotateLeft).
+        ! t [Time]: C_facing(t, west) <- facing(t) = north & execute(t,rotateLeft).
+    }
+
+    // C_robotposition
+    {
+        ! t [Time] l [location]: C_robotposition(t,l)
+            <- execute(t,moveFront) & adjacentLocation(robotposition(t),facing(t),l).
+        ! t [Time] l [location]: C_robotposition(t,l)
+            <- execute(t,moveBack) & adjacentLocation(l,facing(t),robotposition(t)).
+    }
+    
+    //===========================//
+    //----- LTC Constraints -----//
+    //===========================//  
+	
+    // Put Down
+    ! p [pallet] t [Time]: execute(t,putDown(p))
+        => ? l [location]: adjacentLocation(robotposition(t),facing(t),l).
+
+    ! p [pallet] t [Time] : execute(t,putDown(p))
+        => carried(t,p).
+
+    // Pick Up
+    ! p [pallet] t [Time]: execute(t,pickUp(p))
+        => ? l [location]: adjacentLocation(robotposition(t),facing(t),l).
+
+    ! p [pallet] t [Time] l [location]: execute(t,pickUp(p)) & adjacentLocation(robotposition(t),facing(t),l) 
+        => topOfStack(t,l)=p.
+
+    ! p [pallet] t [Time]: execute(t,pickUp(p))
+        => ~(? p2 [pallet]: carried(t,p2)).
+
+    // Move Front
+    ! t [Time]: execute(t,moveFront)
+        => (?l [location]: adjacentLocation(robotposition(t),facing(t),l)).
+
+    ! t [Time] l [location]: execute(t,moveFront) & adjacentLocation(robotposition(t),facing(t),l)
+        => ~(?p [pallet]: position(t,p)=l).
+
+    // Move Back
+    ! t [Time]: execute(t,moveBack)
+        => ?l [location]: adjacentLocation(l,facing(t),robotposition(t)).
+
+    ! t [Time] l [location]: execute(t,moveBack) & adjacentLocation(l,facing(t),robotposition(t))
+        => ~(?p [pallet]: position(t,p)=l).
+}
+
+
+theory verification1: warehousevoc{
+	? l [location] t [Time]: ! p [pallet]: position(t,p)=l.
+}
+
+procedure verification1proc(struc){
+    local theo1 = merge(solution, verification1)
+	local sols = modelexpand(theo1, struc)
+	if #sols > 0 then
+		print(">>>verification 1 succeeded. A model is:")
+		print(sols[1])
+		return
+	end
+	print(">>>verification 1 failed! ( ͡° ͜ʖ ͡°)")
+}
+
+theory verification2: warehousevoc{
+	~(! t [Time] l [location] p1 [pallet] p2 [pallet]:
+    	(on(t,p1,p2) & position(t,p2) = l & Time(t+3))
+    	=>
+    	(position(Next(t),p2)=l &
+    	position(Next(Next(t)),p2)=l &
+    	position(Next(Next(Next(t))),p2)=l)).
+}
+
+procedure verification2proc(struc){
+	local theo2 = merge(solution, verification2)
+	local sols = modelexpand(theo2, struc)
+	if #sols > 0 then
+		print(">>>verification 2 failed. At least this is a faulty model:")
+		print(sols[1])
+		return
+	end
+	print(">>>verification 2 succes! ( ͡° ͜ʖ ͡°)")
+}
+
+theory verification3: warehousevoc{
+	?t [Time] p [pallet]: ~carried(t,p) & position(t,p) = robotposition(t).
+}
+
+procedure verification3proc(struc){
+	local theo3 = merge(solution, verification3)
+	local sols = modelexpand(theo3, struc)
+	if #sols > 0 then
+		print(">>>verification 3 failed. At least this is a faulty model:")
+		print(sols[1])
+		return
+	end
+	print(">>>verification 3 succes! ( ͡° ͜ʖ ͡°)")
+}
+
+
+procedure allVerifications(){
+	strucToCheck = verStruc
+	verification1proc(strucToCheck)
+	verification2proc(strucToCheck)
+	verification3proc(strucToCheck)
+}
+
+
+structure verStruc:warehousevoc{
+	Time = {0..16}
+	Start = 0
+	Next = {0->1;1->2;2->3;3->4;4->5;5->6;6->7;7->8;8->9;9->10;10->11;11->12;12->13;13->14;14->15;15->16}
+	xco={1..3}
+	yco={1..3}
+	height = {0..3}
+	pallet={p1;p2}
+	inaccessible={grid(3,2);grid(2,2)}
+	ceiling = 3
+}
+
+structure smallStruc:warehousevoc{
+    Time = {0..8}
+	Start = 0
+	
+    Next = {0->1;1->2;2->3;3->4;4->5;5->6;6->7;7->8}
+	xco={1..2}
+	yco={1..2}
+	height = {0..2}
+	pallet={p1;p2}
+	inaccessible={}
+	ceiling = 2
+    robotposition<ct> = {0->grid(1,1)}
+    facing<ct> = {0->north()}
+    position<ct> = {0,p1->grid(2,1);0,p2->grid(2,1)}
+    on<ct> = {0,p1,p2}
+    execute<ct> = {0,rotateRight();1,pickUp(p1);2,rotateLeft();3,putDown(p1);4,rotateRight();5,pickUp(p2);6,rotateLeft();7,putDown(p2);8,rotateLeft()}
+}
+
+structure smallStruc1:warehousevoc{
+    Time = {0..2}
+    Start = 0
+    
+    Next = {0->1;1->2}
+    xco={1..2}
+    yco={1..1}
+    height = {0..2}
+    pallet={p1}
+    inaccessible={}
+    ceiling = 2
+    robotposition<ct> = {0->grid(1,1)}
+    facing<ct> = {0->east()}
+    position<ct> = {0,p1->grid(2,1)}
+    execute<ct> = {0,pickUp(p1);1,moveFront()}
+}
+
+structure smallStruc2:warehousevoc{
+    Time = {0..2}
+    Start = 0
+    
+    Next = {0->1;1->2}
+    xco={1..2}
+    yco={1..1}
+    height = {0..2}
+    pallet={p1;p2}
+    inaccessible={}
+    ceiling = 2
+    robotposition<ct> = {0->grid(1,1)}
+    facing<ct> = {0->east()}
+    position<ct> = {0,p1->grid(2,1);0,p2->grid(2,1)}
+    on<ct> = {0,p1,p2}
+    execute<ct> = {0,pickUp(p1);1,putDown(p1)}
+}
+
+procedure main(){
+    //Depending on what you wish to do, execute one of the following methods:
+	 
+    //This method (defined in the instances.idp) checks some given worlds for consistency
+	//check()
+    
+    //Run the verifications
+    allVerifications()
+
+    //This method lets you walk through your solutions interactively
+	//simulate_interactive(solution,smallStruc)
+	
+    //This method walks randomly trough the solutions, 5 steps deep
+	//simulate_random(solution,verStruc,5)
+	
+    //This method (defined above) simply searches models of your theory
+	//stdoptions.nbmodels=5 //Find 5 models
+	//printmodels(modelexpand(solution,smallStruc))
+	//printmodels(allmodels(solution,smallStruc))
+    //printcore(solution,smallStruc)
+	
+}
+

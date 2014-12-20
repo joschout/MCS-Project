@@ -1,0 +1,188 @@
+--This is a comment
+
+MODULE main
+	VAR
+	
+		--it is ALLOWED to add arguments to the constructors of pallet and robot!!!!
+		robot 	: robot(1,3,carried_pallet,pallet1,pallet2);
+		
+		--Initially, the pallets are on different locations
+		pallet1		: pallet(p1,1,1,carried_pallet,robot);
+		pallet2		: pallet(p2,5,3,carried_pallet,robot);
+		
+		carried_pallet: {p1,p2,none};
+	INIT
+	    carried_pallet = none;
+	 
+	ASSIGN
+	    next(carried_pallet) :=
+	        case
+			    robot.action=pick_pallet & pallet1.top_of_stack & pallet1.location=robot.front_location : p1;
+			    robot.action=pick_pallet & pallet2.top_of_stack & pallet2.location=robot.front_location : p2;
+			    robot.action=drop_pallet: none;
+			    TRUE: carried_pallet; 
+		    esac;
+	INVAR
+	    (pallet1.location = pallet2.location) -> !(pallet1.top_of_stack=pallet2.top_of_stack);
+	INVAR
+	    !(pallet1.location = pallet2.location) -> (pallet1.top_of_stack & pallet2.top_of_stack);
+	TRANS 
+	    (robot.action=drop_pallet & carried_pallet=p1) -> (next(pallet1.top_of_stack));
+	TRANS 
+	    (robot.action=drop_pallet & carried_pallet=p2) -> (next(pallet2.top_of_stack));
+	TRANS 
+	    (!(robot.action=pick_pallet) & pallet1.location = pallet2.location) -> (next(pallet1.top_of_stack)=pallet1.top_of_stack);
+	TRANS 
+	    !(next(robot.allowed_to_move_front)) -> !(next(robot.action=moveFront));
+	TRANS 
+	    !(next(robot.allowed_to_move_back)) -> !(next(robot.action=moveBack));
+	TRANS 
+	    !(next(robot.pallet_in_front)) -> !(next(robot.action=pick_pallet));
+	TRANS 
+	    (next(carried_pallet=none)) -> !(next(robot.action=drop_pallet));
+	TRANS 
+	    !(next(carried_pallet=none)) -> !(next(robot.action=pick_pallet));
+	DEFINE
+	    pallet_stack := pallet1.location = pallet2.location;
+	--PUT YOUR CTL/LTL SPECIFICATIONS HERE!
+	
+	-- Spec 1: It is possible that at a certain point in time, pallet 2 is on top of pallet 1,
+	-- and at a later point in time, the stack is reversed (pallet 1 on top of pallet 2)
+	CTLSPEC
+	    EF (pallet_stack & pallet2.top_of_stack & EF (pallet_stack & pallet1.top_of_stack))
+	
+	-- Spec 2: It is not possible that pallet 1 is on top of pallet 2 and at the same time,
+	-- pallet 2 is on top of pallet 1
+	LTLSPEC
+	    !F (pallet_stack & pallet2.top_of_stack & pallet1.top_of_stack)
+	
+	-- Spec 3: Whatever happens, the robot can always pick up pallet 1 (at some time later).
+	CTLSPEC
+	    ! EF ( !(EF (carried_pallet = p1)))
+	    
+	-- Spec 4: f at some point t in time pallet 1 is being carried, and some later time, it
+	-- is no longer carried by the robot, then the following holds: starting from t, pallet 1
+	-- remains being carried until the robot performs the action drop_pallet
+    LTLSPEC
+        G(pallet1.carried & F(!pallet1.carried) -> (pallet1.carried U robot.action = drop_pallet))
+	
+	-- Spec 5: Whenever the robot and pallet 1 are at the same position, pallet 1 is carried.
+	LTLSPEC
+	    G (robot.location = pallet1.location -> pallet1.carried)
+	
+	-- Spec 6: If the robot carries pallet 1 infinitely many times and he carries pallet 2
+    -- infinitely many times, then he must also rotate clockwise infinitely many times.
+    LTLSPEC
+        G (F (pallet1.carried)) & G (F (pallet2.carried)) -> G (F (robot.action = rotate_clock))
+
+MODULE robot(initX, initY,carried_pallet,pallet1,pallet2) --initX and initY are the initial x and y coordinates
+	VAR
+		x : 0..5;
+		y : 0..5;
+		orientation : {north, east, south, west};
+		action : {moveFront, moveBack, pick_pallet, drop_pallet, rotate_clock}; 
+	ASSIGN
+	    init(x) := initX;
+	    init(y) := initY;
+	    -- This makes for a unique initial state (good for testing the system)
+	    --init(orientation) := south;
+	    --init(action) := moveFront;
+	    -- 
+	    next(x) := 	
+            case
+			    action=moveFront: front_x;
+			    action=moveBack: back_x;
+			    TRUE: x; 
+		    esac;
+		next(y) :=
+	        case
+			    action=moveFront: front_y;
+			    action=moveBack: back_y;
+			    TRUE: y;
+     		esac;
+		next(orientation) :=
+  			case
+				action = rotate_clock: next_orientation;
+				TRUE : orientation;
+			esac;
+	DEFINE
+		location := y + 10 * x;
+		front_location := front_y + 10 * front_x;
+		back_location := back_y + 10 * back_x;
+		front_x :=
+		    case
+                orientation = east : ((x + 1) mod 6);
+			    orientation = west : ((x - 1 + 6) mod 6);
+			    TRUE : x;
+		    esac;
+		front_y :=
+		    case
+		        orientation = south : ((y - 1 + 6) mod 6);
+				orientation = north : ((y + 1) mod 6);
+				TRUE : y;
+			esac;
+		back_x :=
+		    case
+                orientation = east : ((x - 1 + 6) mod 6);
+			    orientation = west : ((x + 1) mod 6);
+			    TRUE : x;
+		    esac;
+		back_y :=
+		    case
+		        orientation = south : ((y + 1) mod 6);
+				orientation = north : ((y - 1 + 6) mod 6);
+				TRUE : y;
+			esac;
+		next_orientation:=
+		    case
+		        orientation = north: east;
+		        orientation = east: south;
+		        orientation = south: west;
+		        orientation = west: north;
+		    esac;
+		allowed_to_move_front :=
+		  	case
+				pallet1.location = front_location : FALSE;
+				pallet2.location = front_location : FALSE;
+				TRUE : TRUE;
+			esac;
+		allowed_to_move_back :=
+		  	case
+				pallet1.location = back_location : FALSE;
+				pallet2.location = back_location : FALSE;
+				TRUE : TRUE;
+			esac;
+	    pallet_in_front :=
+	        case
+	            TRUE : !allowed_to_move_front;
+	        esac;
+
+MODULE pallet(name,initX,initY,carried_pallet,robot) --initX and initY are the initial x and y coordinates
+	VAR
+		x : 0..5;
+		y : 0..5;
+		top_of_stack : boolean;
+	ASSIGN
+	    init(x) := initX;
+	    init(y) := initY;
+	    next(x) :=
+	        case
+	            robot.action=pick_pallet & robot.front_location = location & top_of_stack: next(robot.x);
+	            robot.action=drop_pallet & carried : next(robot.front_x);
+	            !(robot.action=drop_pallet) & carried: next(robot.x);
+	            TRUE: x;
+	        esac;
+	    next(y) :=
+	        case
+	        	robot.action=pick_pallet & robot.front_location = location & top_of_stack: next(robot.y);
+	            robot.action=drop_pallet & carried : next(robot.front_y);
+	            !(robot.action=drop_pallet) & carried: next(robot.y);
+	            TRUE: y;
+	        esac;
+    DEFINE
+		location := y + 10 * x;
+        carried := name = carried_pallet;
+		
+		
+		
+		
