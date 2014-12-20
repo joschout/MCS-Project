@@ -14,12 +14,56 @@ Warehouse Robots}
 
 \section*{Design decisions}
 \subsection*{Part 2: Modelling the dynamic system in IDP}
-We have introduced one new function symbol: \emph{heightOf}. This function maps each pallet onto a height. We have chosen the height of pallets on the floor to be $1$, as they are one pallet high.
+We started from the code of the first part of the project, which we adapted to the linear time calculus by making the predicates hold for every moment in time.\\
 \\
-\emph{heightOf} is defined inductively. We state that a pallet on the floor (which has no pallet below it and is not being carried,) has a height of 1.
-If a pallet is on top of another pallet, it's height is one higher.\\
-\\
-Our time spend on this part of this project is about four hours. Most of the time was spent on rewriting statements. Each of the staments in our final solution is explained by a comment. 
+We have introduced one new function symbol: \emph{heightOf}. This function maps each pallet onto a height:
+\begin{itemize}
+ \item \emph{heightOf} is defined inductively. We state that a pallet on the floor (which has no pallet below it and is not being carried,) has a height of 1. If a pallet is on top of another pallet, it's height is one higher.
+\end{itemize}
+Furthermore, we introduced to new predicates which describe the location in front and behind the robot at each moment in time:
+\begin{itemize}
+\item \emph{locationInFront(time, location)} is true if and only if \emph{location} is in front of the robot at time point \emph{time};
+\item \emph{locationBehind(time, location)} is true if and only if \emph{location} is in behind of the robot at time point \emph{time}.
+\end{itemize}
+We also defined new dynamic predicates. The first group of predicates is about the direction the robot faces:
+\begin{itemize}
+  \item \emph{C\_Facing(time, dir)} is true if and only if there is an action at time point \emph{time} which causes the robot to face the direction \emph{dir} in the next time point;
+  \item \emph{C\_NFacing(time, dir)} is true if and only if there is an action at time point \emph{time} which causes the robot \textbf{not} to face the direction \emph{dir} in the next time point;
+  \item \emph{I\_Facing(dir)} is true if and only if the robot is facing direction \emph{dir} at the initial time point.
+ \end{itemize}
+ 
+The second group of dynamic predicates has to do with the position of the robot: 
+
+\begin{itemize}
+  \item \emph{C\_Robotposition(time, location)} is true if and only if there is an action at time point \emph{time} which causes the robot to have position \emph{location} in the next time point.
+  \item \emph{C\_NRobotposition(time, location)} is true if and only if there is an action at time point \emph{time} which causes the robot \textbf{not} to have position \emph{location} in the next time point.
+  \item \emph{I\_Robotposition(location)} is true if and only if the robot has position \emph{location} at the initial time point.
+  \end{itemize}   
+ 
+ The third group of dynamic predicates is about the robot carrying a pallet:
+  \begin{itemize} 
+  \item \emph{C\_Carried(time, pallet)} is true if and only if there is an action at time point \emph{time} which causes the pallet \emph{pallet} to be carried by the robot in the next time point;
+  \item \emph{C\_NCarried(time,pallet)} is true if and only if there is an action at time point \emph{time} which causes the pallet \emph{pallet} \textbf{not} to be carried by the robot in the next time point;
+  \item \emph{I\_Carried(pallet)} is true if and only if the robot carries pallet \emph{pallet} at the initial time point.
+ \end{itemize}
+ 
+ 
+Another group of predicates describes the causes for a pallet to be be on top op of another pallet:
+\begin{itemize}
+  \item \emph{C\_On(time, pallet1, pallet2)} is true if and only if there is an action at time point \emph{time} which causes the pallet \emph{pallet1} to be positioned on top of pallet \emph{pallet2} in the next time point.
+  \item \emph{C\_NOn(time, pallet1, pallet2)} is true if and only if there is an action at time point \emph{time} which causes the pallet \emph{pallet1} \textbf{not} to be positioned on top of pallet \emph{pallet2} in the next time point.
+   \item \emph{I\_On(pallet1, pallet1)} is true if and only if  pallet \emph{pallet1} is positioned on top of pallet \emph{pallet2} at the initial time point.
+   \end{itemize}
+   The last group of dynamic predicates has to do with the location of pallets:
+   \begin{itemize} 
+   \item \emph{C\_Position(time, pallet, location)} is true if and only if there is an action at time point \emph{time} which causes the pallet \emph{pallet1} to be positioned at position \emph{location} in the next time point.
+   \item \emph{C\_NPosition(time, pallet, location)} is true if and only if there is an action at time point \emph{time} which causes the pallet \emph{pallet1} \textbf{not} to be positioned at position \emph{location} in the next time point.
+   \item \emph{I\_Position(pallet, location)} is true if and only if pallet \emph{pallet} is positioned at position \emph{location} at the initial time point.
+\end{itemize}
+
+\section*{Part 2: Modelling the dynamic system in NuSMV}
+\section*{Time spent on the project}
+Our time spend on this part of this project is thirty-three hours each. Most of the time spent was on fixing bugs.
 
 
 \end{document}
