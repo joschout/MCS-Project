@@ -99,6 +99,8 @@ theory solution: warehousevoc{
     // at each moment, a pallet cannot be on top of itself
     ! t [Time] p1 [pallet]: ~on(t,p1,p1).
     
+    
+    
     //  at each moment, if a location is inaccessible, then there cannot be pallet positioned at that location
     ! t [Time] l1 [location]: inaccessible(l1) => ~? p1 [pallet]: position(t,p1) = l1.
     
@@ -109,6 +111,9 @@ theory solution: warehousevoc{
     // at each moment, a pallet is being carried if and only if its position is the robot's postion
     ! t [Time] p1 [pallet]: carried(t,p1) <=> position(t,p1) = robotposition(t).
        
+    
+    //If a pallet is on top of another, they have to have the same position
+    ! t [Time] p1, p2 [pallet]: on(t, p2, p1) => (position(t, p1) = position(t, p2)).
     
 /*** the robot ***/
     // at each moment, the robot always faces exactly one direction
@@ -257,7 +262,7 @@ theory solution: warehousevoc{
     //Causes
     
     {
-     	! t [Time] p1, p2 [pallet]: C_On(t, p2, p1) <- execute(t, putDown(p2)) & locationInFront(t,position(t, p1)).// & ~?p3 [pallet] : on(t, p1, p3).
+     	! t [Time] p1, p2 [pallet]: C_On(t, p2, p1) <- execute(t, putDown(p2)) & locationInFront(t,position(t, p1)) & ~?p3 [pallet] : on(t, p3, p1).
         ! t [Time], p1, p2 [pallet]: C_NOn(t, p2, p1) <- execute(t, pickUp(p2)).
         ! p1,p2 [pallet]: I_On(p1,p2) <- on(0, p1, p2).
     }
@@ -286,31 +291,54 @@ theory solution: warehousevoc{
 }
 
 
+/* Negative theory for verifying whether it is possible to make a stack containing all pallets, Negative because there are too man models otherwise */
 theory verification1: warehousevoc{
-	//Verify something here
+	
+    ? t [Time] l [location]: ! p [pallet]: position(t,p)=l.
 }
 
 procedure verification1proc(struc){
-	//Do something here: verify verification1 in the context of structure struc. 
-	//At least print whether the verification is satisified or not.
+	local theory1 = merge(solution, verification1)
+	local sols = modelexpand(theory1, struc)
+	if #sols > 0 then
+		print(">>>verification 1 succeeded. One of the models found is:")
+		print(sols[1])
+		return
+	end
+	print(">>>verification 1 failed!")
 }
 
+//Verify if there can be a stack containing one pallet for at least 3 time steps.
 theory verification2: warehousevoc{
-	//Verify something here
+	~(! t [Time] l [location] p1 [pallet] p2 [pallet]: (on(t,p2,p1) & position(t,p1) = l & Time(t+3)) => //t+3 to make sure you actually have next moments
+    	(position(Next(t),p1)=l & position(Next(Next(t)),p1)=l & position(Next(Next(Next(t))),p1)=l)).
 }
-
 procedure verification2proc(struc){
-	//Do something here: verify verification2 in the context of structure struc. 
-	//At least print whether the verification is satisified or not.
+	local theory2 = merge(solution, verification2)
+	local sols = modelexpand(theory2, struc)
+	if #sols > 0 then
+		print(">>>verification 2 failed. This model is faulty:")
+		print(sols[1])
+		return
+	end
+	print(">>>verification 2 success!")
 }
 
+
+/* Theory for verifying whether the robot can drive through pallets (should fail)*/
 theory verification3: warehousevoc{
-	//Verify something here
+	?t [Time] p [pallet]: ~carried(t,p) & position(t,p) = robotposition(t).
 }
 
 procedure verification3proc(struc){
-	//Do something here: verify verification3 in the context of structure struc. 
-	//At least print whether the verification is satisified or not.
+	local theory3 = merge(solution, verification3)
+	local sols = modelexpand(theory3, struc)
+	if #sols > 0 then
+		print(">>>verification 3 failed. This is a faulty model:")
+		print(sols[1])
+		return
+	end
+	print(">>>verification 3 success!")
 }
 
 
@@ -332,11 +360,6 @@ structure verStruc:warehousevoc{
 	pallet={p1;p2}
 	inaccessible={grid(3,2);grid(2,2)}
 	ceiling = 3
- //   clockwiseTurn = {north()->east();east()->south();south()->west();west()->north()}
-  //  counterClockwiseTurn = {north()->west(); west()->south();south()->east();east()->north()}
-   // moveXWhenFacing = {north()->0; east()->1;south()->0;west()->-1 }
-   // moveYWhenFacing = {north()->1; east()->0;south()->-1;west()->0 }
-    
 }
 
 
@@ -345,7 +368,9 @@ procedure main(){
     print("Main")
 	 
     //This method (defined in the instances.idp) checks some given worlds for consistency
-	check()
+	//check()
+    
+    allVerifications()
 
     //This method lets you walk through your solutions interactively
 	//simulate_interactive(solution,verStruc)
