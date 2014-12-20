@@ -1,0 +1,194 @@
+--This is a comment
+
+MODULE main
+	VAR
+	
+		--it is ALLOWED to add arguments to the constructors of pallet and robot!!!!
+		robot 	: robot(1,3, pallet1, pallet2);
+		
+		--Initially, the pallets are on different locations
+		pallet1		: pallet(1,1, robot, TRUE, FALSE);
+		pallet2		: pallet(5,3, robot, TRUE, FALSE);
+	
+
+	--PUT YOUR CTL/LTL SPECIFICAITONS HERE!		
+
+MODULE robot(initX, initY, pallet1, pallet2) --initX and initY are the initial x and y coordinates
+	VAR
+		x : 0..5;
+		y : 0..5;
+		orientation : {north, east, south, west};
+		action : {moveFront, moveBack, pick_pallet, drop_pallet, rotate_clock}; 
+		carriedPallet : {p1, p2, none};
+	ASSIGN
+		init(x) := initX;
+		init(y) := initY;
+		init(carriedPallet) := none;
+		
+		next(action) :=
+			case
+				isCarryingPallet :
+					case
+						allowedToMoveForward :
+							case
+								allowedToMoveBackward: {moveFront, moveBack, drop_pallet, rotate_clock} ;
+								TRUE: { moveFront, drop_pallet,rotate_clock} ;
+							esac;
+						!allowedToMoveForward:
+							case
+								allowedToMoveBackward: {moveBack, drop_pallet, rotate_clock} ;
+								TRUE: { drop_pallet, rotate_clock};
+							esac;
+					esac;
+				!isCarryingPallet :
+					case 
+						allowedToMoveForward:
+							case 
+								allowedToMoveBackward:	 {moveFront, moveBack, rotate_clock} ;
+								TRUE: {moveFront, rotate_clock} ;
+							esac;
+						!allowedToMoveForward: 
+							case 
+								allowedToMoveBackward: {pick_pallet, moveBackward, rotate_clock};
+								TRUE: {pick_pallet, rotate_clock};
+							esac;
+					esac;
+			esac;
+		
+		next(x) := 
+			case 
+	 			action = moveFront: x_in_front;
+	 			action = moveBack: x_behind;
+	 			TRUE: x;
+	 		esac;
+		next(y) := 
+			case
+				action = moveFront: y_in_front;
+	 			action = moveBack: y_behind;
+	 			TRUE: y;
+	 		esac;
+		next(orientation) := 
+				case
+					action = rotate_clock & oriention = north: east;
+					action = rotate_clock & oriention = east: south;
+					action = rotate_clock & oriention = south: west;
+					action = rotate_clock & oriention = west: north;
+					TRUE: orientation;
+				esac;
+		next(carriedPallet) := 
+			case 
+				action = pick_pallet & palletInFront = p1: p1;
+				action = pick_pallet & palletInFront = p2: p2;
+				action = drop_pallet: none;
+				TRUE: carriedPallet;
+			esac;
+				
+	DEFINE
+		x_in_front :=
+				case 
+					direction = east : (( x + 1 ) mod 6);
+					direction = west: ((x-1 + 6) mod 6);
+					TRUE: x;
+				esac;
+		y_in_front :=
+				case
+					direction = north: (( y + 1 ) mod 6);
+					direction = south: ((y - 1 + 6) mod 6);
+					TRUE: y;
+				esac;
+		x_behind :=
+				case
+					direction = east : (( x-1 + 6) mod 6);
+					direction = west: ((x + 1) mod 6);
+					TRUE: x;
+				esac;
+		y_behind :=
+				case
+					direction = north : (( y-1 + 6) mod 6);
+					direction = south: ((y + 1) mod 6);
+					TRUE: y;
+				esac;			
+		allowedToMoveForward := 
+				case
+					x_in_front = pallet1.x & y_in_front = pallet1.y : FALSE;
+					x_infront = pallet2.x & y_in_front = pallet2.y : FALSE;
+					TRUE: TRUE;
+				esac;
+		allowedToMoveBackward :=
+				case
+					x_behind = pallet1.x & y_behind = pallet1.y : FALSE;
+					x_behind = pallet2.x & y_behind = pallet2.y : FALSE;
+					TRUE: TRUE;
+				esac;
+		isCarryingPallet :=
+			case
+				carriedPallet = p1 : TRUE;
+				carriedPallet = p2: TRUE;
+				TRUE: FALSE;
+			esac;
+		palletInFront := 
+			case
+				pallet1.x = x_in_front & pallet1.y = y_in_front & pallet1.onTopOfStack: p1;
+				pallet2.x = x_in_front & pallet1.y = y_in_front & pallet2.onTopOfStack: p2;
+				TRUE: none;
+			esac;			
+				
+				
+				
+MODULE pallet(initX,initY, robot, initOnTopOfStack, initBeingCarried) --initX and initY are the initial x and y coordinates
+	VAR
+		x : 0..5;
+		y : 0..5;
+		onTopOfStack: boolean;
+		beingCarried: boolean;
+	ASSIGN
+		init(x) := initX;
+		init(y) := initY;
+		init(onTopOfStack) := initOnTopOfStack;
+		init(beingCarried) := initBeingCarried;
+		
+		next(x) := 
+			case
+				robot.action = pick_pallet & onTopOfStack & thisPalletInFrontOfRobot: robot.x;
+				robot.action = drop_pallet: robot.x_in_front;
+				robot.action = moveFront & beingCarried: robot.x_in_front;
+				robot.action = moveBack & beingCarried: robot.x_behind;
+				TRUE: x;
+			esac;
+		next(y) :=
+			case
+				robot.action = pick_pallet & onTopOfStack & thisPalletInFrontOfRobot: robot.y;
+				robot.action = drop_pallet: robot.y_in_front;
+				robot.action = moveFront & beingCarried: robot.y_in_front;
+				robot.action = moveBack & beingCarried: robot.y_behind;
+				TRUE: y;
+			esac;
+		next(onTopOfStack) :=
+			case
+				!onTopOfStack & robot.action = pick_pallet
+					& robot.x_in_front = x & robot.y_in_front = y: TRUE;
+				onTopOfStack & robot.action = pick_pallet 
+					& robot.x_in_front = x & robot.y_in_front = y: FALSE;
+				beingCarried & robot.action = drop_pallet: TRUE;
+				!beingCarried & robot.action = drop_pallet
+					 & robot.x_in_front = x & robot.y_in_front = y: FALSE;
+				TRUE: onTopOfStack;
+			esac;
+		next(beingCarried) :=
+			case
+				!beingCarried & onTopOfStack & robot.action = pick_pallet 
+					& robot.x_in_front = x & robot.y_in_front = y: TRUE;
+				beingCarried & robot.action = drop_pallet: FALSE;
+				TRUE: beingCarried;
+			esac;	
+	DEFINE
+		thisPalletInFrontOfRobot :=
+			case 
+				x = robot.x_in_front & y = robot.y_in_front: TRUE;
+				TRUE: FALSE;
+			esac;
+		
+		
+		
+		
+		
