@@ -189,7 +189,7 @@ MODULE robot(initX, initY, pallet1, pallet2) --initX and initY are the initial x
 		palletInFront := 
 			case
 				pallet1.x = x_in_front & pallet1.y = y_in_front & pallet1.onTopOfStack: p1;
-				pallet2.x = x_in_front & pallet1.y = y_in_front & pallet2.onTopOfStack: p2;
+				pallet2.x = x_in_front & pallet2.y = y_in_front & pallet2.onTopOfStack: p2;
 				TRUE: none;
 			esac;			
 				
@@ -201,6 +201,8 @@ MODULE pallet(initX,initY, robot, initOnTopOfStack, initBeingCarried) --initX an
 		y : 0..5;
 		onTopOfStack: boolean;
 		beingCarried: boolean;
+		
+	
 	ASSIGN
 		init(x) := initX;
 		init(y) := initY;
